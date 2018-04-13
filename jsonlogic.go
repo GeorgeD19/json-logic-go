@@ -3,43 +3,13 @@ package jsonlogic
 import (
 	"errors"
 	"fmt"
-	"strconv"
+	"strings"
 
 	"github.com/dariubs/percent"
-
-	"math"
+	"github.com/spf13/cast"
 
 	"github.com/buger/jsonparser"
 )
-
-// var Operations = map[string]interface{}{
-// 	"==":  SoftEqual,
-// 	"===": HardEqual,
-// 	"!=":  NotSoftEqual,
-// 	"!==": NotHardEqual,
-// 	">":   More,
-// 	">=":  MoreEqual,
-// 	"<":   Less,
-// 	"<=":  LessEqual,
-// 	"!":   NotTruthy,
-// 	"!!":  Truthy,
-// 	// "%": lambda a, b: a % b,
-// 	// "and": lambda *args: reduce(lambda total, arg: total and arg, args, True),
-// 	// "or": lambda *args: reduce(lambda total, arg: total or arg, args, False),
-// 	// "?:": lambda a, b, c: b if a else c,
-// 	// "if": if_,
-// 	// "log": lambda a: logger.info(a) or a,
-// 	// "in": lambda a, b: a in b if "__contains__" in dir(b) else False,
-// 	// "cat": lambda *args: "".join(str(arg) for arg in args),
-// 	// "+": plus,
-// 	// "*": lambda *args: reduce(lambda total, arg: total * float(arg), args, 1),
-// 	// "-": minus,
-// 	// "/": lambda a, b=None: a if b is None else float(a) / float(b),
-// 	// "min": lambda *args: min(args),
-// 	// "max": lambda *args: max(args),
-// 	// "merge": merge,
-// 	// "count": lambda *args: sum(1 if a else 0 for a in args),
-// }
 
 // Errors
 var (
@@ -76,29 +46,6 @@ func RunOperation(name string, params ...interface{}) (res interface{}, err erro
 	return nil, ErrInvalidOperation
 }
 
-func TestRemoveOperation() interface{} {
-	// test1 := "=="
-
-	test1a := 1
-	test1b := 1
-
-	// Throw true
-	result, err := RunOperation("==", test1a, test1b)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// fmt.Println(result.(bool))
-
-	// RemoveOperation(test1)
-
-	// Throw err
-	// result = Operations["=="].run(test1a, test1b).(bool)
-
-	return result
-
-}
-
 func init() {
 	AddOperation("==", new(SoftEqual))
 	AddOperation("===", new(HardEqual))
@@ -112,65 +59,128 @@ func init() {
 	AddOperation("!!", new(Truthy))
 	AddOperation("%", new(Percentage))
 	AddOperation("and", new(And))
+	AddOperation("or", new(Or))
+	AddOperation("var", new(Var))
+
+	// 	"!":   NotTruthy,
+	// 	"!!":  Truthy,
+	// 	// "%": lambda a, b: a % b,
+	// 	// "and": lambda *args: reduce(lambda total, arg: total and arg, args, True),
+	// 	// "or": lambda *args: reduce(lambda total, arg: total or arg, args, False),
+	// 	// "?:": lambda a, b, c: b if a else c,
+	// 	// "if": if_,
+	// 	// "log": lambda a: logger.info(a) or a,
+	// 	// "in": lambda a, b: a in b if "__contains__" in dir(b) else False,
+	// 	// "cat": lambda *args: "".join(str(arg) for arg in args),
+	// 	// "+": plus,
+	// 	// "*": lambda *args: reduce(lambda total, arg: total * float(arg), args, 1),
+	// 	// "-": minus,
+	// 	// "/": lambda a, b=None: a if b is None else float(a) / float(b),
+	// 	// "min": lambda *args: min(args),
+	// 	// "max": lambda *args: max(args),
+	// 	// "merge": merge,
+	// 	// "count": lambda *args: sum(1 if a else 0 for a in args),
+
 }
 
-// func GetOperator() {
+// SoftEqual type is entry point for parser
+type SoftEqual struct{}
 
-// }
-
-// func GetValues() {
-
-// }
-
-// func IsLogic() {
-
-// }
-
-// func UsesData(logic string) {
-
-// }
-
-// And implements the 'and' conditional requiring all bubbled up bools to be true
-type And struct{}
-
-func (o And) run(a ...interface{}) interface{} {
-	fmt.Println("AndOperation")
-	result := true
-
-	// fmt.Println(a[0])
-	// So we would run through the array of objects and execute it and if any values are false we stop and return false
-	// results := GetValues(a[0].(string), a[1].(string))
-	GetValues(a[0].(string), a[1].(string))
-	// if err != nil {
-	// 	return false
-	// }
-
-	// for _, res := range results {
-	// fmt.Println(res)
-	// if res == false {
-	// 	result = false
-	// }
-	// }
-
-	return result
+func (o SoftEqual) run(a ...interface{}) interface{} {
+	values := GetValues(cast.ToString(a[0]), cast.ToString(a[1]))
+	return SoftEqualOperation(cast.ToString(values[0]), cast.ToString(values[1]))
 }
 
-type Or struct{}
-
-func (o Or) run(a ...interface{}) interface{} {
-	// So we would run through the array of objects and if any operations return true then we return true
+// SoftEqualOperation implements the '==' operator, which does type JS-style coertion. Returns bool.
+func SoftEqualOperation(a string, b string) bool {
+	if a == b {
+		return true
+	}
 	return false
 }
 
-// Less implements the '<' operator with JS-style type coertion. Returns bool.
+// HardEqual type is entry point for parser
+type HardEqual struct{}
+
+func (o HardEqual) run(a ...interface{}) interface{} {
+	values := GetValues(a[0].(string), a[1].(string))
+	return HardEqualOperation(values[0], values[1])
+}
+
+// HardEqualOperation Implements the '===' operator, which does type JS-style coertion. Returns bool.
+func HardEqualOperation(a interface{}, b interface{}) bool {
+	if GetType(a) != GetType(b) {
+		return false
+	}
+
+	if a == b {
+		return true
+	}
+
+	return false
+}
+
+// NotSoftEqual type is entry point for parser
+type NotSoftEqual struct{}
+
+func (o NotSoftEqual) run(a ...interface{}) interface{} {
+	values := GetValues(a[0].(string), a[1].(string))
+	return NotSoftEqualOperation(cast.ToString(values[0]), cast.ToString(values[1]))
+}
+
+// NotSoftEqualOperation implements the '!=' operator, which does type JS-style coertion. Returns bool.
+func NotSoftEqualOperation(a string, b string) bool {
+	return !SoftEqualOperation(a, b)
+}
+
+// NotHardEqual type is entry point for parser
+type NotHardEqual struct{}
+
+func (o NotHardEqual) run(a ...interface{}) interface{} {
+	values := GetValues(a[0].(string), a[1].(string))
+	return NotHardEqualOperation(values[0], values[1])
+}
+
+// NotHardEqualOperation implements the '!==' operator, which does type JS-style coertion. Returns bool.
+func NotHardEqualOperation(a interface{}, b interface{}) bool {
+	return !HardEqualOperation(a, b)
+}
+
+// More type is entry point for parser
+type More struct{}
+
+func (o More) run(a ...interface{}) interface{} {
+	values := GetValues(a[0].(string), a[1].(string))
+	return MoreOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+}
+
+// MoreOperation implements the '>' operator with JS-style type coertion. Returns bool.
+func MoreOperation(a float64, b float64) bool {
+	return LessEqualOperation(b, a)
+}
+
+// MoreEqual type is entry point for parser
+type MoreEqual struct{}
+
+func (o MoreEqual) run(a ...interface{}) interface{} {
+	values := GetValues(a[0].(string), a[1].(string))
+	return MoreEqualOperation(cast.ToString(values[0]), cast.ToString(values[1]))
+}
+
+// MoreEqualOperation implements the '>=' operator with JS-style type coertion. Returns bool.
+func MoreEqualOperation(a string, b string) bool {
+	return LessOperation(cast.ToFloat64(b), cast.ToFloat64(a)) || SoftEqualOperation(a, b)
+}
+
+// Less type is entry point for parser
 type Less struct{}
 
 func (o Less) run(a ...interface{}) interface{} {
-	// a[0] is string value for object and is always an array that may also contain objects, ints, etc
-	// a[1] is data passed
-	return LessOperation(ToFloat(a[0]), ToFloat(a[1]))
+	values := GetValues(a[0].(string), a[1].(string))
+	return LessOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 }
 
+// LessOperation implements the '<' operator with JS-style type coertion. Returns bool.
 func LessOperation(a float64, b float64) bool {
 	if a < b {
 		return true
@@ -182,99 +192,93 @@ func LessOperation(a float64, b float64) bool {
 type LessEqual struct{}
 
 func (o LessEqual) run(a ...interface{}) interface{} {
-	if ToFloat(a[0]) <= ToFloat(a[1]) {
+	values := GetValues(a[0].(string), a[1].(string))
+	return LessEqualOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+}
+
+func LessEqualOperation(a float64, b float64) bool {
+	if a <= b {
 		return true
 	}
 	return false
 }
 
-// More implements the '>' operator with JS-style type coertion. Returns bool.
-type More struct{}
+// And type is entry point for parser
+type And struct{}
 
-func (o More) run(a ...interface{}) interface{} {
-	return Operations["<"].run(a[1], a[0])
+func (o And) run(a ...interface{}) interface{} {
+	values := GetValues(a[0].(string), a[1].(string))
+	return AndOperation(values)
 }
 
-// MoreEqual implements the '>=' operator with JS-style type coertion. Returns bool.
-type MoreEqual struct{}
-
-func (o MoreEqual) run(a ...interface{}) interface{} {
-	return Operations["<"].run(a[1], a[0]).(bool) || Operations["=="].run(a[0], a[1]).(bool)
+// AndOperation implements the 'and' conditional requiring all bubbled up bools to be true
+func AndOperation(values []interface{}) bool {
+	result := true
+	for _, res := range values {
+		if res == false {
+			result = false
+		}
+	}
+	return result
 }
 
-// GetValues will return an array of perhaps map[]{data:interface{}, type:int}
+// Or type is entry point for parser
+type Or struct{}
+
+func (o Or) run(a ...interface{}) interface{} {
+	values := GetValues(a[0].(string), a[1].(string))
+	return OrOperation(values)
+}
+
+// OrOperation implements the 'or' conditional requiring at least one of the bubbled up bools to be true
+func OrOperation(values []interface{}) bool {
+	result := false
+	for _, res := range values {
+		if res == true {
+			result = true
+		}
+	}
+	return result
+}
+
+// GetValues will return values of any kind
 func GetValues(logic string, data string) (results []interface{}) {
-	// results := make(map[]interface{})
-
 	_, err := jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		// fmt.Printf("Value: '%s'\n Type: %s\n Offset: %s\n", string(value), dataType, string(offset))
-
 		switch dataType {
 		case jsonparser.Object:
-			fmt.Println("GetValueObject")
-			// GOT HERE
-			fmt.Println(string(value))
-			// ParseObject(string(value), data)
-
-			// objectResult, _ := ParseObject(logic, data)
-			// res[offset] = objectResult.(bool)
-			// res[offset] = string(value)
-			// results[offset] = value
-			results = append(results, value)
+			res, _ := ParseObject(string(value), data)
+			results = append(results, res)
 			break
-		case jsonparser.Array:
-			fmt.Println("GetValueArray")
-			// Would we really have an array within an array? probably not
-			// result, err := ParseArray(string(value), data)
-			// res[offset] = string(value)
-			// results[offset] = value
-			results = append(results, value)
-			break
+		// case jsonparser.Array:
+		// 	fmt.Println("GetValueArray")
+		// 	results = append(results, value)
+		// 	break
 		case jsonparser.String:
-			fmt.Println("GetValueString")
-			// res[offset] = string(value)
-			// results[offset] = value
-			results = append(results, value)
+			results = append(results, cast.ToString(value))
 			break
 		case jsonparser.Number:
 			fmt.Println("GetValueNumber")
-
-			// res[offset] = string(value)
-			// results[offset] = string(value)
-			results = append(results, string(value))
+			results = append(results, cast.ToFloat64(cast.ToString(value)))
 			break
 		case jsonparser.Boolean:
 			fmt.Println("GetValueBoolean")
-			// res[offset] = string(value)
-			// results[offset] = value
-			results = append(results, value)
+			results = append(results, cast.ToBool(value))
 			break
 		case jsonparser.Null:
 			fmt.Println("GetValueNull")
-			// res[offset] = string(value)
-			// results[offset] = value
 			results = append(results, value)
 			break
-
-			// String
-			// Number
-			// Object
-			// Array
-			// Boolean
-			// Null
-			// Unknown
 		}
 	})
 	if err != nil {
 		return nil
 	}
-	// fmt.Println(results)
 	return results
 }
 
 // GetType returns an int to map against type so we can see if we are dealing with a specific type of data or an object operation
 func GetType(a interface{}) int {
-	switch v := a.(type) {
+	switch a.(type) {
 	case int:
 		return 1
 	case float64:
@@ -286,74 +290,9 @@ func GetType(a interface{}) int {
 	default:
 
 		// It could be an object or array
-		fmt.Printf("Don't know what this is %s", string(v.(string)))
+		fmt.Println("Don't know what this is")
 		return 0
 	}
-}
-
-// SoftEqual implements the '==' operator, which does type JS-style coertion. Returns bool.
-type SoftEqual struct{}
-
-// Perhaps we should change this to logic , data since the function has been moved outside
-func (o SoftEqual) run(a ...interface{}) interface{} {
-	// This way we can actually call recusively and dig into any objects whilst passing data
-	// So this line would change to values:= GetValues(logic, data) returning an array of different data types (ints, strings, objects)
-	values := GetValues(a[0].(string), a[1].(string))
-	// fmt.Println(ToString(values[0]))
-	// fmt.Println(ToString(values[1]))
-	result := SoftEqualOperation(ToString(values[0]), ToString(values[1]))
-	// fmt.Println(result)
-	return result
-}
-
-func SoftEqualOperation(a string, b string) bool {
-	// fmt.Println(a)
-	// fmt.Println(b)
-	if a == b {
-		return true
-	}
-	return false
-}
-
-// NotSoftEqual implements the '!=' operator, which does type JS-style coertion. Returns bool.
-type NotSoftEqual struct{}
-
-func (o NotSoftEqual) run(a ...interface{}) interface{} {
-	return !Operations["!="].run(a[0], a[1]).(bool)
-}
-
-// HardEqual Implements the '===' operator, which does type JS-style coertion. Returns bool.
-type HardEqual struct{}
-
-func (o HardEqual) run(a ...interface{}) interface{} {
-
-	// HardEqualOperation()
-
-	aType := GetType(a[0])
-	bType := GetType(a[1])
-
-	if aType != bType {
-		return false
-	}
-
-	if a[0] == a[1] {
-		return true
-	}
-
-	return false
-
-	// switch v := aType; v {
-	// case 1:
-	// 	return a[0].(int) == a[1].(int)
-	// case 2:
-	// 	return a[0].(float64) == a[1].(float64)
-	// case 3:
-	// 	return a[0].(string) == a[1].(string)
-	// case 4:
-	// 	return a[0].(bool) == a[1].(bool)
-	// default:
-	// 	return false
-	// }
 }
 
 // ParseArray is basically ParseValue runs all the operations in an array and returns an array of values whether that be bool or whatever
@@ -379,26 +318,6 @@ func ParseArray(logic string, data string) (res []bool, off int, e error) {
 	return result, offset, nil
 }
 
-// func HardEqualOperation(a interface{}, b interface{}) {
-// 	if GetType(a[0]) != GetType(a[1]) {
-// 		return false
-// 	}
-
-// 	if a[0] == a[1] {
-// 		return true
-// 	}
-
-// 	return false
-// }
-
-// NotHardEqual implements the '!==' operator, which does type JS-style coertion. Returns bool.
-type NotHardEqual struct{}
-
-func (o NotHardEqual) run(a ...interface{}) interface{} {
-	results := !Operations["!=="].run(a[0], a[1]).(bool)
-	return results
-}
-
 // Percentage implements the '%' operator, which does type JS-style coertion. Returns float64.
 type Percentage struct{}
 
@@ -406,7 +325,7 @@ func (o Percentage) run(a ...interface{}) interface{} {
 	// a[0] is the value passed in
 	// a[1] is any data passed in so it can trickle down to any var objects
 
-	return percent.PercentOf(ToInt(a[0]), ToInt(a[1]))
+	return percent.PercentOf(cast.ToInt(a[0]), cast.ToInt(a[1]))
 }
 
 func PercentageOperation(a int, b int) float64 {
@@ -417,11 +336,11 @@ func PercentageOperation(a int, b int) float64 {
 type Truthy struct{}
 
 func (o Truthy) run(a ...interface{}) interface{} {
-	aVal := ToString(a[0])
+	aVal := cast.ToString(a[0])
 	if aVal == "0" {
 		return true
 	}
-	return ToBool(a[0])
+	return cast.ToBool(a[0])
 }
 
 // NotTruthy implements the '!' operator with JS-style type coertion. Returns bool.
@@ -435,23 +354,56 @@ func (o NotTruthy) run(a ...interface{}) interface{} {
 type Var struct{}
 
 func (o Var) run(a ...interface{}) interface{} {
-	// fmt.Println("Var")
-	// fmt.Println(a)
-	// We can use this to get the data value
-	// jsonparser.Get(data, a[0])
-
-	return true
+	fmt.Println("VarOperation")
+	fmt.Println(a[0].(string))
+	return OperationVar(a[0].(string), a[1].(string))
 }
 
-// func ParseOperation(logic string) (operation []byte, value []byte], err error) {
+func OperationVar(logic string, data string) interface{} {
+	key := strings.Split(logic, ".")
+	// value, dataType, offset, err := jsonparser.Get([]byte(a[1].(string)), variable...)
+	value, dataType, _, _ := jsonparser.Get([]byte(data), key...)
+	translatedValue := TranslateType(value, dataType)
+	return translatedValue
+}
+
+func TranslateType(data []byte, dataType jsonparser.ValueType) interface{} {
+	switch dataType {
+	case jsonparser.String:
+		return string(data)
+		break
+	case jsonparser.Number:
+		numberString := cast.ToString(data)
+		numberFloat := cast.ToFloat64(numberString)
+		return numberFloat
+		break
+	case jsonparser.Boolean:
+		return string(data)
+		break
+	case jsonparser.Null:
+		return string(data)
+		break
+	default:
+		return nil
+	}
+	return nil
+
+}
+
 // An operation could return anything
 func ParseObject(logic string, data string) (res interface{}, err error) {
-	result := false
+	// result := interface{}
 	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-		fmt.Printf("Key: '%s'\n Value: '%s'\n Type: %s\n", string(key), string(value), dataType)
+		// fmt.Printf("Key: '%s'\n Value: '%s'\n Type: %s\n", string(key), string(value), dataType)
+
+		// res, err = RunOperation(string(key), string(value), data)
+		// if err != nil {
+		// 	return ErrInvalidOperation
+		// }
+		// return nil
 
 		if operation, ok := Operations[string(key)]; ok {
-			result = operation.run(string(value), data).(bool)
+			res = operation.run(string(value), data)
 		} else {
 			return ErrInvalidOperation
 		}
@@ -461,16 +413,8 @@ func ParseObject(logic string, data string) (res interface{}, err error) {
 	if err != nil {
 		return false, err
 	}
-	return result, nil
+	return res, nil
 }
-
-// func GetOperation(Type string) (o Operation, err error) {
-// 	if _, ok := Operations[Type]; ok {
-// 		return Operations[Type], nil
-// 	} else {
-// 		return nil, InvalidOperationError
-// 	}
-// }
 
 // Apply is the entry function to parse logic and optional data
 func Apply(logic string, data string) (res bool, errs error) {
@@ -487,185 +431,4 @@ func Apply(logic string, data string) (res bool, errs error) {
 	}
 
 	return result.(bool), nil
-}
-
-// ToString converts recognised types to string
-func ToString(a ...interface{}) string {
-	aType := GetType(a[0])
-
-	switch v := aType; v {
-	case 1:
-		return strconv.Itoa(a[0].(int))
-	case 2:
-		return strconv.FormatFloat(a[0].(float64), 'E', -1, 64)
-	case 3:
-		return a[0].(string)
-	case 4:
-		if a[0].(bool) {
-			return ToString(1)
-		}
-		return ToString(0)
-	default:
-		return ""
-	}
-}
-
-// ToInt converts recognised types to int
-func ToInt(a ...interface{}) int {
-	aType := GetType(a[0])
-
-	switch v := aType; v {
-	case 1:
-		return a[0].(int)
-	case 2:
-		return int(a[0].(float64))
-	case 3:
-		// fmt.Println(a)
-		// TODO Check if string int or float rather than just float
-		// result, err := ParseObject(a[0].(string), a[1].(string))
-		// fmt.Println(result)
-		// fmt.Println(err)
-		ParseObject(a[0].(string), a[1].(string))
-
-		f, err := strconv.ParseFloat(a[0].(string), 64)
-		if err != nil {
-			return 0
-		}
-		return int(f)
-	case 4:
-		if a[0].(bool) {
-			return 1
-		}
-		return 0
-	default:
-		return 0
-	}
-}
-
-// ToFloat converts recognised types to float64
-// TODO If we pass in an object var then we need to get the data extracted first before conversion
-func ToFloat(a ...interface{}) float64 {
-	aType := GetType(a[0])
-
-	switch v := aType; v {
-	case 1:
-		return float64(a[0].(int))
-	case 2:
-		return a[0].(float64)
-	case 3:
-		// We should check if it is a var object
-
-		// result, err := ParseObject(a[0].(string), a[1].(string))
-		// fmt.Println(result)
-		// fmt.Println(err)
-		ParseObject(a[0].(string), a[1].(string))
-
-		f, err := strconv.ParseFloat(a[0].(string), 64)
-		if err != nil {
-			return 0.0
-		}
-		return f
-	case 4:
-		if a[0].(bool) {
-			return 1.0
-		}
-		return 0.0
-	default:
-		return 0.0
-	}
-}
-
-// ToBool converts recognised types to bool
-func ToBool(a interface{}) bool {
-	aType := GetType(a)
-
-	switch v := aType; v {
-	case 1:
-		if a.(int) >= 1 {
-			return true
-		}
-		return false
-	case 2:
-		if math.Round(a.(float64)) >= 1.0 {
-			return true
-		}
-		return false
-	case 3:
-		f, err := strconv.ParseFloat(a.(string), 64)
-		if err != nil {
-			return false
-		}
-		if math.Round(f) >= 1.0 {
-			return true
-		}
-		return false
-	case 4:
-		return a.(bool)
-	default:
-		return false
-	}
-}
-
-// func TestOperationCall(Type string, a ...interface{}) {
-// 	fmt.Println(Operations[Type].run(a[0]))
-// }
-
-// func ToBoolTest() {
-// 	fmt.Println(ToBool(0.4))
-// 	fmt.Println(ToBool(0.5))
-// }
-
-// Tests
-// SoftEqualTest TODO Move this to test
-func SoftEqualTest() {
-	// Throws false
-	// fmt.Println(strconv.FormatBool(SoftEqual(1, 2)))
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(SoftEqual(2, 2)))
-
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(SoftEqual(0, false)))
-
-	// // Throws false
-	// fmt.Println(strconv.FormatBool(SoftEqual(true, false)))
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(SoftEqual(false, false)))
-
-	// // Throws false
-	// fmt.Println(strconv.FormatBool(SoftEqual("1", "2")))
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(SoftEqual("1", "1")))
-
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(SoftEqual("1", 1)))
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(SoftEqual("1", true)))
-
-	// // Throws false
-	// fmt.Println(strconv.FormatBool(SoftEqual("1", nil)))
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(SoftEqual(nil, nil)))
-}
-
-// HardEqualTest checks the functionality of the HardEqual function
-func HardEqualTest() {
-	// Throws false
-	// fmt.Println(strconv.FormatBool(HardEqual(1, 2)))
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(HardEqual(2, 2)))
-
-	// // Throws false
-	// fmt.Println(strconv.FormatBool(HardEqual(true, false)))
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(HardEqual(false, false)))
-
-	// // Throws false
-	// fmt.Println(strconv.FormatBool(HardEqual("1", "2")))
-	// // Throws true
-	// fmt.Println(strconv.FormatBool(HardEqual("1", "1")))
-
-	// // Throws false
-	// fmt.Println(strconv.FormatBool(HardEqual("1", 1)))
-	// // Throws false
-	// fmt.Println(strconv.FormatBool(HardEqual("1", true)))
 }

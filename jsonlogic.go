@@ -43,17 +43,60 @@ import (
 
 // Errors
 var (
-	InvalidOperationError = errors.New("Invalid Operation %s")
+	ErrInvalidOperation = errors.New("Invalid Operation %s")
 )
 
+// Operations contains all possible operations that can be performed
 var Operations = make(map[string]Operation)
 
+// Operation interface that allows operations to be registered in a list
 type Operation interface {
 	run(a ...interface{}) interface{}
 }
 
-func AddOperation(Name string, Callable Operation) {
-	Operations[Name] = Callable
+// AddOperation adds possible operation to Operations library
+func AddOperation(name string, callable Operation) {
+	Operations[name] = callable
+}
+
+// RemoveOperation removes possible operation from Operations library if it exists
+func RemoveOperation(name string) {
+	_, ok := Operations[name]
+	if ok {
+		delete(Operations, name)
+	}
+}
+
+// RunOperation is to ensure that any operation ran doesn't crash the system if it doesn't exist
+func RunOperation(name string, params ...interface{}) (res interface{}, err error) {
+	_, ok := Operations[name]
+	if ok {
+		return Operations[name].run(params), nil
+	}
+	return nil, ErrInvalidOperation
+}
+
+func TestRemoveOperation() interface{} {
+	// test1 := "=="
+
+	test1a := 1
+	test1b := 1
+
+	// Throw true
+	result, err := RunOperation("==", test1a, test1b)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// fmt.Println(result.(bool))
+
+	// RemoveOperation(test1)
+
+	// Throw err
+	// result = Operations["=="].run(test1a, test1b).(bool)
+
+	return result
+
 }
 
 func init() {
@@ -91,18 +134,23 @@ func init() {
 type And struct{}
 
 func (o And) run(a ...interface{}) interface{} {
+	fmt.Println("AndOperation")
 	result := true
-	// So we would run through the array of objects and execute it and if any values are false we stop and return false
-	results, _, err := ParseArray(a[0].(string), a[1].(string))
-	if err != nil {
-		return false
-	}
 
-	for _, res := range results {
-		if res == false {
-			result = false
-		}
-	}
+	// fmt.Println(a[0])
+	// So we would run through the array of objects and execute it and if any values are false we stop and return false
+	// results := GetValues(a[0].(string), a[1].(string))
+	GetValues(a[0].(string), a[1].(string))
+	// if err != nil {
+	// 	return false
+	// }
+
+	// for _, res := range results {
+	// fmt.Println(res)
+	// if res == false {
+	// 	result = false
+	// }
+	// }
 
 	return result
 }
@@ -118,9 +166,13 @@ func (o Or) run(a ...interface{}) interface{} {
 type Less struct{}
 
 func (o Less) run(a ...interface{}) interface{} {
-	fmt.Println("Less")
-	fmt.Println(GetType(a))
-	if ToFloat(a[0]) < ToFloat(a[1]) {
+	// a[0] is string value for object and is always an array that may also contain objects, ints, etc
+	// a[1] is data passed
+	return LessOperation(ToFloat(a[0]), ToFloat(a[1]))
+}
+
+func LessOperation(a float64, b float64) bool {
+	if a < b {
 		return true
 	}
 	return false
@@ -150,12 +202,114 @@ func (o MoreEqual) run(a ...interface{}) interface{} {
 	return Operations["<"].run(a[1], a[0]).(bool) || Operations["=="].run(a[0], a[1]).(bool)
 }
 
+// GetValues will return an array of perhaps map[]{data:interface{}, type:int}
+func GetValues(logic string, data string) (results []interface{}) {
+	// results := make(map[]interface{})
+
+	_, err := jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		// fmt.Printf("Value: '%s'\n Type: %s\n Offset: %s\n", string(value), dataType, string(offset))
+
+		switch dataType {
+		case jsonparser.Object:
+			fmt.Println("GetValueObject")
+			// GOT HERE
+			fmt.Println(string(value))
+			// ParseObject(string(value), data)
+
+			// objectResult, _ := ParseObject(logic, data)
+			// res[offset] = objectResult.(bool)
+			// res[offset] = string(value)
+			// results[offset] = value
+			results = append(results, value)
+			break
+		case jsonparser.Array:
+			fmt.Println("GetValueArray")
+			// Would we really have an array within an array? probably not
+			// result, err := ParseArray(string(value), data)
+			// res[offset] = string(value)
+			// results[offset] = value
+			results = append(results, value)
+			break
+		case jsonparser.String:
+			fmt.Println("GetValueString")
+			// res[offset] = string(value)
+			// results[offset] = value
+			results = append(results, value)
+			break
+		case jsonparser.Number:
+			fmt.Println("GetValueNumber")
+
+			// res[offset] = string(value)
+			// results[offset] = string(value)
+			results = append(results, string(value))
+			break
+		case jsonparser.Boolean:
+			fmt.Println("GetValueBoolean")
+			// res[offset] = string(value)
+			// results[offset] = value
+			results = append(results, value)
+			break
+		case jsonparser.Null:
+			fmt.Println("GetValueNull")
+			// res[offset] = string(value)
+			// results[offset] = value
+			results = append(results, value)
+			break
+
+			// String
+			// Number
+			// Object
+			// Array
+			// Boolean
+			// Null
+			// Unknown
+		}
+	})
+	if err != nil {
+		return nil
+	}
+	// fmt.Println(results)
+	return results
+}
+
+// GetType returns an int to map against type so we can see if we are dealing with a specific type of data or an object operation
+func GetType(a interface{}) int {
+	switch v := a.(type) {
+	case int:
+		return 1
+	case float64:
+		return 2
+	case string:
+		return 3
+	case bool:
+		return 4
+	default:
+
+		// It could be an object or array
+		fmt.Printf("Don't know what this is %s", string(v.(string)))
+		return 0
+	}
+}
+
 // SoftEqual implements the '==' operator, which does type JS-style coertion. Returns bool.
 type SoftEqual struct{}
 
+// Perhaps we should change this to logic , data since the function has been moved outside
 func (o SoftEqual) run(a ...interface{}) interface{} {
-	fmt.Println("SoftEqual")
-	if ToString(a[0]) == ToString(a[1]) {
+	// This way we can actually call recusively and dig into any objects whilst passing data
+	// So this line would change to values:= GetValues(logic, data) returning an array of different data types (ints, strings, objects)
+	values := GetValues(a[0].(string), a[1].(string))
+	// fmt.Println(ToString(values[0]))
+	// fmt.Println(ToString(values[1]))
+	result := SoftEqualOperation(ToString(values[0]), ToString(values[1]))
+	// fmt.Println(result)
+	return result
+}
+
+func SoftEqualOperation(a string, b string) bool {
+	// fmt.Println(a)
+	// fmt.Println(b)
+	if a == b {
 		return true
 	}
 	return false
@@ -173,6 +327,8 @@ type HardEqual struct{}
 
 func (o HardEqual) run(a ...interface{}) interface{} {
 
+	// HardEqualOperation()
+
 	aType := GetType(a[0])
 	bType := GetType(a[1])
 
@@ -180,19 +336,60 @@ func (o HardEqual) run(a ...interface{}) interface{} {
 		return false
 	}
 
-	switch v := aType; v {
-	case 1:
-		return a[0].(int) == a[1].(int)
-	case 2:
-		return a[0].(float64) == a[1].(float64)
-	case 3:
-		return a[0].(string) == a[1].(string)
-	case 4:
-		return a[0].(bool) == a[1].(bool)
-	default:
-		return false
+	if a[0] == a[1] {
+		return true
 	}
+
+	return false
+
+	// switch v := aType; v {
+	// case 1:
+	// 	return a[0].(int) == a[1].(int)
+	// case 2:
+	// 	return a[0].(float64) == a[1].(float64)
+	// case 3:
+	// 	return a[0].(string) == a[1].(string)
+	// case 4:
+	// 	return a[0].(bool) == a[1].(bool)
+	// default:
+	// 	return false
+	// }
 }
+
+// ParseArray is basically ParseValue runs all the operations in an array and returns an array of values whether that be bool or whatever
+func ParseArray(logic string, data string) (res []bool, off int, e error) {
+	result := []bool{}
+	offset, err := jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		// fmt.Printf("Value: '%s'\n Type: %s\n Offset: %s\n", string(value), dataType, string(offset))
+
+		switch dataType {
+		case jsonparser.Object:
+			objectResult, _ := ParseObject(string(value), data)
+			result[offset] = objectResult.(bool)
+			break
+		case jsonparser.Array:
+			// Would we really have an array within an array? probably not
+			// result, err := ParseArray(string(value), data)
+			break
+		}
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return result, offset, nil
+}
+
+// func HardEqualOperation(a interface{}, b interface{}) {
+// 	if GetType(a[0]) != GetType(a[1]) {
+// 		return false
+// 	}
+
+// 	if a[0] == a[1] {
+// 		return true
+// 	}
+
+// 	return false
+// }
 
 // NotHardEqual implements the '!==' operator, which does type JS-style coertion. Returns bool.
 type NotHardEqual struct{}
@@ -206,7 +403,14 @@ func (o NotHardEqual) run(a ...interface{}) interface{} {
 type Percentage struct{}
 
 func (o Percentage) run(a ...interface{}) interface{} {
+	// a[0] is the value passed in
+	// a[1] is any data passed in so it can trickle down to any var objects
+
 	return percent.PercentOf(ToInt(a[0]), ToInt(a[1]))
+}
+
+func PercentageOperation(a int, b int) float64 {
+	return percent.PercentOf(a, b)
 }
 
 // Truthy implements the '!!' operator with JS-style type coertion. Returns bool.
@@ -231,8 +435,8 @@ func (o NotTruthy) run(a ...interface{}) interface{} {
 type Var struct{}
 
 func (o Var) run(a ...interface{}) interface{} {
-	fmt.Println("Var")
-	fmt.Println(a)
+	// fmt.Println("Var")
+	// fmt.Println(a)
 	// We can use this to get the data value
 	// jsonparser.Get(data, a[0])
 
@@ -244,10 +448,12 @@ func (o Var) run(a ...interface{}) interface{} {
 func ParseObject(logic string, data string) (res interface{}, err error) {
 	result := false
 	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+		fmt.Printf("Key: '%s'\n Value: '%s'\n Type: %s\n", string(key), string(value), dataType)
+
 		if operation, ok := Operations[string(key)]; ok {
 			result = operation.run(string(value), data).(bool)
 		} else {
-			return InvalidOperationError
+			return ErrInvalidOperation
 		}
 		return nil
 	})
@@ -255,7 +461,7 @@ func ParseObject(logic string, data string) (res interface{}, err error) {
 	if err != nil {
 		return false, err
 	}
-	return false, nil
+	return result, nil
 }
 
 // func GetOperation(Type string) (o Operation, err error) {
@@ -265,26 +471,6 @@ func ParseObject(logic string, data string) (res interface{}, err error) {
 // 		return nil, InvalidOperationError
 // 	}
 // }
-
-// ParseArray runs all the operations in an array and returns an array of bools
-func ParseArray(logic string, data string) (res []bool, off int, e error) {
-	result := []bool{}
-	offset, err := jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		// fmt.Printf("Value: '%s'\n Type: %s\n Offset: %s\n", string(value), dataType, string(offset))
-		switch dataType {
-		case jsonparser.Object:
-			ParseObject(string(value), data)
-			break
-		case jsonparser.Array:
-			ParseArray(string(value), data)
-			break
-		}
-	})
-	if err != nil {
-		return result, 0, err
-	}
-	return result, offset, nil
-}
 
 // Apply is the entry function to parse logic and optional data
 func Apply(logic string, data string) (res bool, errs error) {
@@ -303,35 +489,19 @@ func Apply(logic string, data string) (res bool, errs error) {
 	return result.(bool), nil
 }
 
-// GetType returns an int to map against type
-func GetType(a interface{}) int {
-	switch a.(type) {
-	case int:
-		return 1
-	case float64:
-		return 2
-	case string:
-		return 3
-	case bool:
-		return 4
-	default:
-		return 0
-	}
-}
-
 // ToString converts recognised types to string
-func ToString(a interface{}) string {
-	aType := GetType(a)
+func ToString(a ...interface{}) string {
+	aType := GetType(a[0])
 
 	switch v := aType; v {
 	case 1:
-		return strconv.Itoa(a.(int))
+		return strconv.Itoa(a[0].(int))
 	case 2:
-		return strconv.FormatFloat(a.(float64), 'E', -1, 64)
+		return strconv.FormatFloat(a[0].(float64), 'E', -1, 64)
 	case 3:
-		return a.(string)
+		return a[0].(string)
 	case 4:
-		if a.(bool) {
+		if a[0].(bool) {
 			return ToString(1)
 		}
 		return ToString(0)
@@ -342,7 +512,7 @@ func ToString(a interface{}) string {
 
 // ToInt converts recognised types to int
 func ToInt(a ...interface{}) int {
-	aType := GetType(a)
+	aType := GetType(a[0])
 
 	switch v := aType; v {
 	case 1:
@@ -350,11 +520,12 @@ func ToInt(a ...interface{}) int {
 	case 2:
 		return int(a[0].(float64))
 	case 3:
-		fmt.Println(a)
+		// fmt.Println(a)
 		// TODO Check if string int or float rather than just float
-		result, err := ParseObject(a[0].(string), a[1].(string))
-		fmt.Println(result)
-		fmt.Println(err)
+		// result, err := ParseObject(a[0].(string), a[1].(string))
+		// fmt.Println(result)
+		// fmt.Println(err)
+		ParseObject(a[0].(string), a[1].(string))
 
 		f, err := strconv.ParseFloat(a[0].(string), 64)
 		if err != nil {
@@ -374,9 +545,7 @@ func ToInt(a ...interface{}) int {
 // ToFloat converts recognised types to float64
 // TODO If we pass in an object var then we need to get the data extracted first before conversion
 func ToFloat(a ...interface{}) float64 {
-	aType := GetType(a)
-
-	fmt.Println(a)
+	aType := GetType(a[0])
 
 	switch v := aType; v {
 	case 1:
@@ -386,9 +555,10 @@ func ToFloat(a ...interface{}) float64 {
 	case 3:
 		// We should check if it is a var object
 
-		result, err := ParseObject(a[0].(string), a[1].(string))
-		fmt.Println(result)
-		fmt.Println(err)
+		// result, err := ParseObject(a[0].(string), a[1].(string))
+		// fmt.Println(result)
+		// fmt.Println(err)
+		ParseObject(a[0].(string), a[1].(string))
 
 		f, err := strconv.ParseFloat(a[0].(string), 64)
 		if err != nil {
@@ -436,14 +606,14 @@ func ToBool(a interface{}) bool {
 	}
 }
 
-func TestOperationCall(Type string, a ...interface{}) {
-	fmt.Println(Operations[Type].run(a[0]))
-}
+// func TestOperationCall(Type string, a ...interface{}) {
+// 	fmt.Println(Operations[Type].run(a[0]))
+// }
 
-func ToBoolTest() {
-	fmt.Println(ToBool(0.4))
-	fmt.Println(ToBool(0.5))
-}
+// func ToBoolTest() {
+// 	fmt.Println(ToBool(0.4))
+// 	fmt.Println(ToBool(0.5))
+// }
 
 // Tests
 // SoftEqualTest TODO Move this to test

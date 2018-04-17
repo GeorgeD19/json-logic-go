@@ -4,9 +4,11 @@ This parser accepts [JsonLogic](http://jsonlogic.com) rules and executes them in
 
 The JsonLogic format is designed to allow you to share rules (logic) between front-end and back-end code (regardless of language difference), even to store logic along with a record in a database.  JsonLogic is documented extensively at [JsonLogic.com](http://jsonlogic.com), including examples of every [supported operation](http://jsonlogic.com/operations.html) and a place to [try out rules in your browser](http://jsonlogic.com/play.html).
 
-The same format can also be executed in JavaScript by the library [json-logic-js](https://github.com/jwadhams/json-logic-js/)
-
-The same format can also be executed in PHP by the library [json-logic-php](https://github.com/jwadhams/json-logic-php/)
+The same format can also be executed in the following libraries:
+- JavaScript [json-logic-js](https://github.com/jwadhams/json-logic-js/)
+- PHP [json-logic-php](https://github.com/jwadhams/json-logic-php/)
+- Python [json-logic-py](https://github.com/nadirizr/json-logic-py)
+- Ruby [json-logic-ruby](https://github.com/bhgames/json-logic-ruby)
 
 ## Examples
 

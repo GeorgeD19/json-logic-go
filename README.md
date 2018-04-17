@@ -63,7 +63,7 @@ fmt.Println(result)
     
 ### Data-Driven
 
-Obviously these rules aren't very interesting if they can only take static literal data. Typically `JsonLogic::apply` will be called with a rule object and a data object. You can use the `var` operator to get attributes of the data object:
+Obviously these rules aren't very interesting if they can only take static literal data. Typically `jsonlogic.Apply` will be called with a rule object and a data object. You can use the `var` operator to get attributes of the data object:
 
 ```GO
 logic = `{ "var": ["a"] }`

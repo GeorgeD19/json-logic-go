@@ -40,13 +40,13 @@ func RemoveOperation(name string) {
 }
 
 // RunOperation is to ensure that any operation ran doesn't crash the system if it doesn't exist
-func RunOperation(name string, params ...interface{}) (res interface{}, err error) {
-	_, ok := Operations[name]
-	if ok {
-		return Operations[name].run(params), nil
-	}
-	return nil, ErrInvalidOperation
-}
+// func RunOperation(name string, params ...interface{}) (res interface{}, err error) {
+// 	_, ok := Operations[name]
+// 	if ok {
+// 		return Operations[name].run(params), nil
+// 	}
+// 	return nil, ErrInvalidOperation
+// }
 
 func init() {
 	AddOperation("==", new(SoftEqual))
@@ -78,6 +78,107 @@ func init() {
 	// 	// "merge": merge,
 	// 	// "count": lambda *args: sum(1 if a else 0 for a in args),
 
+}
+
+func RunOperation(key string, logic string, data string) (res interface{}) {
+	values := GetValues(logic, data)
+	switch key {
+	case "==":
+		res = SoftEqualOperation(cast.ToString(values[0]), cast.ToString(values[1]))
+		break
+	case "===":
+		res = HardEqualOperation(values[0], values[1])
+		break
+	case "!=":
+		res = NotSoftEqualOperation(cast.ToString(values[0]), cast.ToString(values[1]))
+		break
+	case "!==":
+		res = NotHardEqualOperation(values[0], values[1])
+		break
+	case ">":
+		res = MoreOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		break
+	case ">=":
+		res = MoreEqualOperation(cast.ToString(values[0]), cast.ToString(values[1]))
+		break
+	case "<":
+		res = LessOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		break
+	case "<=":
+		res = LessEqualOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		break
+	case "!":
+		res = NotTruthyOperation(values)
+		break
+	case "!!":
+		res = TruthyOperation(values)
+		break
+	case "%":
+		res = PercentageOperation(cast.ToInt(values[0]), cast.ToInt(values[1]))
+		break
+	case "and":
+		res = AndOperation(values)
+		break
+	case "or":
+		res = OrOperation(values)
+		break
+	case "var":
+		var fallback interface{}
+		if len(values) > 1 {
+			fallback = values[1]
+		} else {
+			fallback = nil
+		}
+
+		res = VarOperation(cast.ToString(values[0]), fallback, data)
+		break
+	case "?":
+	case "if":
+		res = IfOperation(cast.ToBool(values[0]), values[1], values[2])
+		break
+	case "log":
+
+		res = LogOperation(cast.ToString(values[0]))
+		break
+	case "+":
+		res = PlusOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		break
+	case "-":
+		res = MinusOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		break
+	case "*":
+		res = MultiplyOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		break
+	case "/":
+		res = DivideOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		break
+	case "min":
+		res = MinOperation(values)
+		break
+	case "max":
+		res = MaxOperation(values)
+		break
+	}
+	return res
+}
+
+// ParseObject entry point
+func ParseObject(logic string, data string) (res interface{}, err error) {
+	// result := interface{}
+	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+		res = RunOperation(string(key), string(value), data)
+		// if operation, ok := Operations[string(key)]; ok {
+		// 	res = operation.run(string(value), data)
+		// } else {
+		// 	return ErrInvalidOperation
+		// }
+		return nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+	return res, nil
 }
 
 // Max type is entry point for parser
@@ -220,12 +321,12 @@ func (o HardEqual) run(a ...interface{}) interface{} {
 }
 
 // HardEqualOperation Implements the '===' operator, which does type JS-style coertion. Returns bool.
-func HardEqualOperation(a interface{}, b interface{}) bool {
-	if GetType(a) != GetType(b) {
+func HardEqualOperation(a ...interface{}) bool {
+	if GetType(a[0]) != GetType(a[1]) {
 		return false
 	}
 
-	if a == b {
+	if a[0] == a[1] {
 		return true
 	}
 
@@ -254,8 +355,8 @@ func (o NotHardEqual) run(a ...interface{}) interface{} {
 }
 
 // NotHardEqualOperation implements the '!==' operator, which does type JS-style coertion. Returns bool.
-func NotHardEqualOperation(a interface{}, b interface{}) bool {
-	return !HardEqualOperation(a, b)
+func NotHardEqualOperation(a ...interface{}) bool {
+	return !HardEqualOperation(a[0], a[1])
 }
 
 // More type is entry point for parser
@@ -528,11 +629,11 @@ func (o Var) run(a ...interface{}) interface{} {
 		fallback = nil
 	}
 
-	return OperationVar(cast.ToString(values[0]), fallback, cast.ToString(a[1]))
+	return VarOperation(cast.ToString(values[0]), fallback, cast.ToString(a[1]))
 }
 
-// OperationVar implements the 'var' operator, which grabs value from passed data and has a fallback
-func OperationVar(logic string, fallback interface{}, data string) interface{} {
+// VarOperation implements the 'var' operator, which grabs value from passed data and has a fallback
+func VarOperation(logic string, fallback interface{}, data string) interface{} {
 	key := strings.Split(logic, ".")
 	dataValue, dataType, _, _ := jsonparser.Get([]byte(data), key...)
 	value := TranslateType(dataValue, dataType)
@@ -563,24 +664,6 @@ func TranslateType(data []byte, dataType jsonparser.ValueType) interface{} {
 	}
 	return nil
 
-}
-
-// ParseObject entry point
-func ParseObject(logic string, data string) (res interface{}, err error) {
-	// result := interface{}
-	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-		if operation, ok := Operations[string(key)]; ok {
-			res = operation.run(string(value), data)
-		} else {
-			return ErrInvalidOperation
-		}
-		return nil
-	})
-
-	if err != nil {
-		return false, err
-	}
-	return res, nil
 }
 
 // Apply is the entry function to parse logic and optional data

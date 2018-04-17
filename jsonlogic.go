@@ -68,7 +68,7 @@ func RunOperation(key string, logic string, data string) (res interface{}) {
 			fallback = nil
 		}
 
-		res = VarOperation(cast.ToString(values[0]), fallback, data)
+		res = Var(cast.ToString(values[0]), fallback, data)
 		break
 	case "?":
 	case "if":
@@ -265,6 +265,17 @@ func If(conditional bool, success interface{}, fail interface{}) interface{} {
 	return fail
 }
 
+// Var implements the 'var' operator, which grabs value from passed data and has a fallback
+func Var(logic string, fallback interface{}, data string) interface{} {
+	key := strings.Split(logic, ".")
+	dataValue, dataType, _, _ := jsonparser.Get([]byte(data), key...)
+	value := TranslateType(dataValue, dataType)
+	if value == nil {
+		value = fallback
+	}
+	return value
+}
+
 // GetValues will return values of any kind
 func GetValues(logic string, data string) (results []interface{}) {
 
@@ -364,33 +375,6 @@ func ParseArray(logic string, data string) (res []bool, off int, e error) {
 		return nil, 0, err
 	}
 	return result, offset, nil
-}
-
-// Var type is entry point for parser
-type Var struct{}
-
-func (o Var) run(a ...interface{}) interface{} {
-	values := GetValues(a[0].(string), a[1].(string))
-
-	var fallback interface{}
-	if len(values) > 1 {
-		fallback = values[1]
-	} else {
-		fallback = nil
-	}
-
-	return VarOperation(cast.ToString(values[0]), fallback, cast.ToString(a[1]))
-}
-
-// VarOperation implements the 'var' operator, which grabs value from passed data and has a fallback
-func VarOperation(logic string, fallback interface{}, data string) interface{} {
-	key := strings.Split(logic, ".")
-	dataValue, dataType, _, _ := jsonparser.Get([]byte(data), key...)
-	value := TranslateType(dataValue, dataType)
-	if value == nil {
-		value = fallback
-	}
-	return value
 }
 
 func TranslateType(data []byte, dataType jsonparser.ValueType) interface{} {

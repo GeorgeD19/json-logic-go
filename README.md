@@ -16,7 +16,7 @@ This is a GO interpreter of a format designed to be transmitted and stored as JS
 
 Expressed in JSON, a JsonLogic rule is always one key, with an array of values.
 
-```
+```GO
 logic = `{"==":["apples", "apples"]}`
 result, err := jsonlogic.Apply(logic, ``)
 if err != nil {
@@ -27,7 +27,7 @@ fmt.Println(result)
 ```
 
 ### Simple
-```
+```GO
 logic = `{"==":[1, 1]}`
 result, err := jsonlogic.Apply(logic, ``)
 if err != nil {
@@ -46,7 +46,7 @@ This is a simple test, equivalent to `1 == 1`.  A few things about the format:
 ### Compound
 Here we're beginning to nest rules. 
 
-```
+```GO
 logic = `{"and": [
 		{ ">" => [3,1] },
 		{ "<" => [1,3] }
@@ -63,7 +63,7 @@ fmt.Println(result)
 
 Obviously these rules aren't very interesting if they can only take static literal data. Typically `JsonLogic::apply` will be called with a rule object and a data object. You can use the `var` operator to get attributes of the data object:
 
-```
+```GO
 logic = `{ "var" => ["a"] }`
 data = `{ "a" => 1, "b" => 2 }`
 result, err := jsonlogic.Apply(logic, data)
@@ -78,7 +78,7 @@ If you like, we support [syntactic sugar](https://en.wikipedia.org/wiki/Syntacti
 
 You can also use the `var` operator to access an array by numeric index:
 
-```
+```GO
 logic = `{ "var": [1] }`
 data = `{ "apple", "banana", "carrot" }`
 result, err := jsonlogic.Apply(logic, data)
@@ -91,7 +91,7 @@ fmt.Println(result)
 
 Here's a complex rule that mixes literals and data. The pie isn't ready to eat unless it's cooler than 110 degrees, *and* filled with apples.
 
-```
+```GO
 logic = `{ "and": [
 	{ "<": [ { "var": "temp" }, 110 ] },
 	{ "==": [ { "var": "pie.filling" }, "apple" ] }

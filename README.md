@@ -50,8 +50,8 @@ Here we're beginning to nest rules.
 
 ```GO
 logic = `{"and": [
-		{ ">" => [3,1] },
-		{ "<" => [1,3] }
+		{ ">": [3,1] },
+		{ "<": [1,3] }
 	] }`
 result, err := jsonlogic.Apply(logic, ``)
 if err != nil {
@@ -66,8 +66,8 @@ fmt.Println(result)
 Obviously these rules aren't very interesting if they can only take static literal data. Typically `JsonLogic::apply` will be called with a rule object and a data object. You can use the `var` operator to get attributes of the data object:
 
 ```GO
-logic = `{ "var" => ["a"] }`
-data = `{ "a" => 1, "b" => 2 }`
+logic = `{ "var": ["a"] }`
+data = `{ "a": 1, "b": 2 }`
 result, err := jsonlogic.Apply(logic, data)
 if err != nil {
 	fmt.Println(err)

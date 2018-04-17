@@ -115,4 +115,6 @@ go get github.com/GeorgeD19/json-logic-go
 
 If that doesn't suit you, and you want to manage updates yourself, the entire library is self-contained in jsonlogic.go and you can download it straight into your project as you see fit.
 
+```
 curl -O https://raw.githubusercontent.com/GeorgeD19/json-logic-go/master/jsonlogic.go
+```

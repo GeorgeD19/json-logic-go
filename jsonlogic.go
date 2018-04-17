@@ -315,15 +315,12 @@ func GetValues(logic string, data string) (results []interface{}) {
 						results = append(results, cast.ToString(value))
 						break
 					case jsonparser.Number:
-						fmt.Println("GetValueNumber")
 						results = append(results, cast.ToFloat64(cast.ToString(value)))
 						break
 					case jsonparser.Boolean:
-						fmt.Println("GetValueBoolean")
 						results = append(results, cast.ToBool(value))
 						break
 					case jsonparser.Null:
-						fmt.Println("GetValueNull")
 						results = append(results, value)
 						break
 					}
@@ -397,7 +394,6 @@ func TranslateType(data []byte, dataType jsonparser.ValueType) interface{} {
 		return nil
 	}
 	return nil
-
 }
 
 // ParseObject entry point

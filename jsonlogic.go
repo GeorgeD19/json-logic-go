@@ -18,8 +18,8 @@ var (
 	ErrInvalidOperation = errors.New("Invalid Operation %s")
 )
 
-// Apply is the entry function to parse logic and optional data
-func Apply(logic string, data string) (res interface{}, errs error) {
+// Apply is the entry function to parse rule and optional data
+func Apply(rule string, data string) (res interface{}, errs error) {
 
 	// Ensure data is object
 	if data == `` {
@@ -27,7 +27,7 @@ func Apply(logic string, data string) (res interface{}, errs error) {
 	}
 
 	// Must be an object to start process
-	result, err := ParseOperator(logic, data)
+	result, err := ParseOperator(rule, data)
 	if err != nil {
 		return false, err
 	}
@@ -35,9 +35,9 @@ func Apply(logic string, data string) (res interface{}, errs error) {
 	return result, nil
 }
 
-// ParseOperator takes in the json logic and data and attempts to parse
-func ParseOperator(logic string, data string) (result interface{}, err error) {
-	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+// ParseOperator takes in the json rule and data and attempts to parse
+func ParseOperator(rule string, data string) (result interface{}, err error) {
+	err = jsonparser.ObjectEach([]byte(rule), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
 		result = RunOperator(string(key), string(value), data)
 		return nil
 	})
@@ -50,10 +50,10 @@ func ParseOperator(logic string, data string) (result interface{}, err error) {
 }
 
 // GetValues will attempt to recursively resolve all values for a given operator
-func GetValues(logic string, data string) (results []interface{}) {
+func GetValues(rule string, data string) (results []interface{}) {
 
-	// JsonLogic rule is always one key, with an array of values
-	_, err := jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+	// Jsonrule rule is always one key, with an array of values
+	_, err := jsonparser.ArrayEach([]byte(rule), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		switch dataType {
 		case jsonparser.Object:
 			res, _ := ParseOperator(string(value), data)
@@ -74,15 +74,15 @@ func GetValues(logic string, data string) (results []interface{}) {
 		}
 	})
 
-	// JsonLogic may also support syntactic sugar
+	// Jsonrule may also support syntactic sugar
 	if err != nil {
-		if logic != "" {
-			if _, err := strconv.Atoi(logic); err == nil {
+		if rule != "" {
+			if _, err := strconv.Atoi(rule); err == nil {
 
 				// If string then we can attempt to retrieve the value from the data
-				value, dataType, _, _ := jsonparser.Get([]byte(data), "["+logic+"]")
+				value, dataType, _, _ := jsonparser.Get([]byte(data), "["+rule+"]")
 				if len(value) > 0 {
-					results = append(results, logic)
+					results = append(results, rule)
 					switch dataType {
 					case jsonparser.String:
 						results = append(results, cast.ToString(value))
@@ -98,13 +98,13 @@ func GetValues(logic string, data string) (results []interface{}) {
 						break
 					}
 				} else {
-					// No data was found so we just append the logic and move on
-					results = append(results, logic)
+					// No data was found so we just append the rule and move on
+					results = append(results, rule)
 				}
 
 			} else {
 				// Is an integer so we assume it's value
-				results = append(results, logic)
+				results = append(results, rule)
 			}
 		} else {
 			return nil
@@ -114,9 +114,9 @@ func GetValues(logic string, data string) (results []interface{}) {
 	return results
 }
 
-// RunOperator determines what function to run against the passed logic and data
-func RunOperator(key string, logic string, data string) (result interface{}) {
-	values := GetValues(logic, data)
+// RunOperator determines what function to run against the passed rule and data
+func RunOperator(key string, rule string, data string) (result interface{}) {
+	values := GetValues(rule, data)
 	switch key {
 	case "==":
 		result = SoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
@@ -363,8 +363,8 @@ func If(conditional bool, success interface{}, fail interface{}) interface{} {
 }
 
 // Var implements the 'var' operator, which grabs value from passed data and has a fallback.
-func Var(logic string, fallback interface{}, data string) interface{} {
-	key := strings.Split(logic, ".")
+func Var(rule string, fallback interface{}, data string) interface{} {
+	key := strings.Split(rule, ".")
 	dataValue, dataType, _, _ := jsonparser.Get([]byte(data), key...)
 	value := TranslateType(dataValue, dataType)
 	if value == nil {

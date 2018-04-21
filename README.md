@@ -19,8 +19,8 @@ This is a GO interpreter of a format designed to be transmitted and stored as JS
 Expressed in JSON, a JsonLogic rule is always one key, with an array of values.
 
 ```GO
-logic = `{"==":["apples", "apples"]}`
-result, err := jsonlogic.Apply(logic, ``)
+rule = `{"==":["apples", "apples"]}`
+result, err := jsonlogic.Apply(rule, ``)
 if err != nil {
 	fmt.Println(err)
 }
@@ -30,8 +30,8 @@ fmt.Println(result)
 
 ### Simple
 ```GO
-logic = `{"==":[1, 1]}`
-result, err := jsonlogic.Apply(logic, ``)
+rule = `{"==":[1, 1]}`
+result, err := jsonlogic.Apply(rule, ``)
 if err != nil {
 	fmt.Println(err)
 }
@@ -49,11 +49,11 @@ This is a simple test, equivalent to `1 == 1`.  A few things about the format:
 Here we're beginning to nest rules. 
 
 ```GO
-logic = `{"and": [
+rule = `{"and": [
 		{ ">": [3,1] },
 		{ "<": [1,3] }
 	] }`
-result, err := jsonlogic.Apply(logic, ``)
+result, err := jsonlogic.Apply(rule, ``)
 if err != nil {
 	fmt.Println(err)
 }
@@ -66,9 +66,9 @@ fmt.Println(result)
 Obviously these rules aren't very interesting if they can only take static literal data. Typically `jsonlogic.Apply` will be called with a rule object and a data object. You can use the `var` operator to get attributes of the data object:
 
 ```GO
-logic = `{ "var": ["a"] }`
+rule = `{ "var": ["a"] }`
 data = `{ "a": 1, "b": 2 }`
-result, err := jsonlogic.Apply(logic, data)
+result, err := jsonlogic.Apply(rule, data)
 if err != nil {
 	fmt.Println(err)
 }
@@ -81,9 +81,9 @@ If you like, we support [syntactic sugar](https://en.wikipedia.org/wiki/Syntacti
 You can also use the `var` operator to access an array by numeric index:
 
 ```GO
-logic = `{ "var": [1] }`
+rule = `{ "var": [1] }`
 data = `{ "apple", "banana", "carrot" }`
-result, err := jsonlogic.Apply(logic, data)
+result, err := jsonlogic.Apply(rule, data)
 if err != nil {
 	fmt.Println(err)
 }
@@ -94,12 +94,12 @@ fmt.Println(result)
 Here's a complex rule that mixes literals and data. The pie isn't ready to eat unless it's cooler than 110 degrees, *and* filled with apples.
 
 ```GO
-logic = `{ "and": [
+rule = `{ "and": [
 	{ "<": [ { "var": "temp" }, 110 ] },
 	{ "==": [ { "var": "pie.filling" }, "apple" ] }
 ] }`
 data = `{ "temp": 100, "pie": { "filling": "apple" } }`
-result, err := jsonlogic.Apply(logic, data)
+result, err := jsonlogic.Apply(rule, data)
 if err != nil {
 	fmt.Println(err)
 }

@@ -20,7 +20,7 @@ Expressed in JSON, a JsonLogic rule is always one key, with an array of values.
 
 ```GO
 rule = `{"==":["apples", "apples"]}`
-result, err := jsonlogic.Apply(rule, ``)
+result, err := jsonlogic.Run(rule)
 if err != nil {
 	fmt.Println(err)
 }
@@ -31,7 +31,7 @@ fmt.Println(result)
 ### Simple
 ```GO
 rule = `{"==":[1, 1]}`
-result, err := jsonlogic.Apply(rule, ``)
+result, err := jsonlogic.Run(rule)
 if err != nil {
 	fmt.Println(err)
 }
@@ -53,7 +53,7 @@ rule = `{"and": [
 		{ ">": [3,1] },
 		{ "<": [1,3] }
 	] }`
-result, err := jsonlogic.Apply(rule, ``)
+result, err := jsonlogic.Run(rule)
 if err != nil {
 	fmt.Println(err)
 }
@@ -63,7 +63,7 @@ fmt.Println(result)
     
 ### Data-Driven
 
-Obviously these rules aren't very interesting if they can only take static literal data. Typically `jsonlogic.Apply` will be called with a rule object and a data object. You can use the `var` operator to get attributes of the data object:
+Obviously these rules aren't very interesting if they can only take static literal data. Typically `jsonlogic.Apply` will be called with a rule object and a data object however you can also use `jsonlogic.Run` to run a rule object without a data object. You can use the `var` operator to get attributes of the data object:
 
 ```GO
 rule = `{ "var": ["a"] }`

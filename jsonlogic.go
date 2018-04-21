@@ -18,6 +18,11 @@ var (
 	ErrInvalidOperation = errors.New("Invalid Operation %s")
 )
 
+// Run is an alias to Apply without data
+func Run(rule string) (res interface{}, errs error) {
+	return Apply(rule, ``)
+}
+
 // Apply is the entry function to parse rule and optional data
 func Apply(rule string, data string) (res interface{}, errs error) {
 

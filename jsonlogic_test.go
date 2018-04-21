@@ -12,10 +12,9 @@ func TestMaxTrue(t *testing.T) {
 		3,
 		5
 		]} `
-	data := `{}`
 
 	// Should return true
-	result, _ := Apply(rule, data)
+	result, _ := Run(rule)
 
 	if cast.ToFloat64(result) != 5.0 {
 		t.Fatal("rule should return 5.0")
@@ -28,10 +27,9 @@ func TestMinTrue(t *testing.T) {
 		3,
 		5
 		]} `
-	data := `{}`
 
 	// Should return true
-	result, _ := Apply(rule, data)
+	result, _ := Run(rule)
 
 	if cast.ToFloat64(result) != 3.0 {
 		t.Fatal("rule should return 3.0")
@@ -43,10 +41,9 @@ func TestMultiplyTrue(t *testing.T) {
 		2,
 		2
 		]} `
-	data := `{}`
 
 	// Should return true
-	result, _ := Apply(rule, data)
+	result, _ := Run(rule)
 
 	if cast.ToFloat64(result) != 4.0 {
 		t.Fatal("rule should return 4.0")
@@ -58,10 +55,9 @@ func TestDivideTrue(t *testing.T) {
 		2,
 		2
 		]} `
-	data := `{}`
 
 	// Should return true
-	result, _ := Apply(rule, data)
+	result, _ := Run(rule)
 
 	if cast.ToFloat64(result) != 1.0 {
 		t.Fatal("rule should return 1.0")
@@ -70,10 +66,9 @@ func TestDivideTrue(t *testing.T) {
 
 func TestPercentageSoftEquals(t *testing.T) {
 	rule := `{"==": [{"%" : [20,50]}, 40]} `
-	data := `{}`
 
 	// Should return true
-	result, _ := Apply(rule, data)
+	result, _ := Run(rule)
 
 	if cast.ToBool(result) != true {
 		t.Fatal("rule should return true")
@@ -82,10 +77,9 @@ func TestPercentageSoftEquals(t *testing.T) {
 
 func TestPercentageTrue(t *testing.T) {
 	rule := `{"%" : [20,50]}`
-	data := `{}`
 
 	// Should return true
-	result, _ := Apply(rule, data)
+	result, _ := Run(rule)
 
 	if cast.ToInt(result) != 40 {
 		t.Fatal("rule should return 40")

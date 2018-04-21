@@ -56,7 +56,6 @@ func ParseOperator(rule string, data string) (result interface{}, err error) {
 
 // GetValues will attempt to recursively resolve all values for a given operator
 func GetValues(rule string, data string) (results []interface{}) {
-
 	// Jsonrule rule is always one key, with an array of values
 	_, err := jsonparser.ArrayEach([]byte(rule), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		switch dataType {

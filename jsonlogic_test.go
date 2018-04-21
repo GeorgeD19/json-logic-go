@@ -6,6 +6,105 @@ import (
 	"github.com/spf13/cast"
 )
 
+// Accessing Data
+
+// Var
+
+func TestVar(t *testing.T) {
+	rule := `{ "var" : ["a"] }`
+	data := `{ "a":1, "b":2 }`
+
+	result, _ := Apply(rule, data)
+
+	if cast.ToInt(result) != 1 {
+		t.Fatalf("rule should return 1, instead returned %s", result)
+	}
+}
+
+func TestVarSugar(t *testing.T) {
+	rule := `{"var":"a"}`
+	data := `{"a":1,"b":2}`
+
+	result, _ := Apply(rule, data)
+
+	if cast.ToInt(result) != 1 {
+		t.Fatalf("rule should return 1, instead returned %s", result)
+	}
+}
+
+func TestVarFallback(t *testing.T) {
+	rule := `{"var":["z", 26]}`
+	data := `{"a":1,"b":2}`
+
+	result, _ := Apply(rule, data)
+
+	if cast.ToInt(result) != 26 {
+		t.Fatalf("rule should return 26, instead returned %s", result)
+	}
+}
+
+func TestVarDotNotation(t *testing.T) {
+	rule := `{"var" : "champ.name"}`
+	data := `{
+		"champ" : {
+		  "name" : "Fezzig",
+		  "height" : 223
+		},
+		"challenger" : {
+		  "name" : "Dread Pirate Roberts",
+		  "height" : 183
+		}
+	  }`
+
+	result, _ := Apply(rule, data)
+
+	if cast.ToString(result) != "Fezzig" {
+		t.Fatalf("rule should return Fezzig, instead returned %s", result)
+	}
+}
+
+func TestVarNumericIndex(t *testing.T) {
+	rule := `{"var":1}`
+	data := `["zero", "one", "two"]`
+
+	result, _ := Apply(rule, data)
+
+	if cast.ToString(result) != "one" {
+		t.Fatalf("rule should return one, instead returned %s", result)
+	}
+}
+
+func TestVarComplex(t *testing.T) {
+	rule := `{ "and" : [
+		{"<" : [ { "var" : "temp" }, 110 ]},
+		{"==" : [ { "var" : "pie.filling" }, "apple" ] }
+	  ] }`
+	data := `{
+		"temp" : 100,
+		"pie" : { "filling" : "apple" }
+	  }`
+
+	result, _ := Apply(rule, data)
+
+	if cast.ToBool(result) != true {
+		t.Fatalf("rule should return true, instead returned %s", result)
+	}
+}
+
+func TestVarEmpty(t *testing.T) {
+	rule := `{ "cat" : [
+		"Hello, ",
+		{"var":""}
+	] }`
+	data := `"Dolly"`
+
+	result, _ := Apply(rule, data)
+
+	if cast.ToString(result) != "Hello, Dolly" {
+		t.Fatalf("rule should return Hello, Dolly, instead returned %s", result)
+	}
+}
+
 // Between
 
 // Between exclusive
@@ -174,6 +273,22 @@ func TestAddCast(t *testing.T) {
 	}
 }
 
+// String Operations
+
+// In
+
+func TestIn(t *testing.T) {
+	rule := `{"in":["Spring", "Springfield"]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != true {
+		t.Fatalf("rule should return true, instead returned %s", result)
+	}
+}
+
+// Cat
+
 // %
 // func TestModolo(t *testing.T) {
 // 	rule := `{"%": [101,2]}`
@@ -184,6 +299,48 @@ func TestAddCast(t *testing.T) {
 // 		t.Fatalf("rule should return 1, instead returned %s", result)
 // 	}
 // }
+
+// substr
+
+func TestSubstrPosition(t *testing.T) {
+	rule := `{"substr": ["jsonlogic", 4]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToString(result) != "logic" {
+		t.Fatalf("rule should return logic, instead returned %s", result)
+	}
+}
+
+func TestSubstrPositionNeg(t *testing.T) {
+	rule := `{"substr": ["jsonlogic", -5]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToString(result) != "logic" {
+		t.Fatalf("rule should return logic, instead returned %s", result)
+	}
+}
+
+func TestSubstrPositionLength(t *testing.T) {
+	rule := `{"substr": ["jsonlogic", 1, 3]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToString(result) != "son" {
+		t.Fatalf("rule should return son, instead returned %s", result)
+	}
+}
+
+func TestSubstrPositionLengthNeg(t *testing.T) {
+	rule := `{"substr": ["jsonlogic", 4, -2]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToString(result) != "log" {
+		t.Fatalf("rule should return log, instead returned %s", result)
+	}
+}
 
 // TODO Clean up tests to match against http://jsonlogic.com/operations.html
 

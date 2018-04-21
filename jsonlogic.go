@@ -1,6 +1,7 @@
 package jsonlogic
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
@@ -93,6 +94,7 @@ func GetValues(rule string, data string) (results []interface{}) {
 		results = append(results, cast.ToFloat64(string(ruleValue)))
 		break
 	case jsonparser.String:
+		// Remove the quotes we added so we could detect string type
 		rule = rule[1 : len(rule)-1]
 		value, dataType, _, _ := jsonparser.Get([]byte(data), rule)
 		if len(value) > 0 {
@@ -125,7 +127,6 @@ func GetValues(rule string, data string) (results []interface{}) {
 
 // RunOperator determines what function to run against the passed rule and data
 func RunOperator(key string, rule string, data string) (result interface{}) {
-
 	values := GetValues(rule, data)
 	switch key {
 	// Accessing Data
@@ -212,22 +213,67 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 	case "%":
 		result = Percentage(cast.ToInt(values[0]), cast.ToInt(values[1]))
 		break
+		// String Operations
+	case "cat":
+		result = Cat(values)
+		break
+	case "in":
+		result = In(cast.ToString(values[0]), cast.ToString(values[1]))
+		break
+	case "substr":
+		if len(values) > 2 {
+			result = Substr(cast.ToString(values[0]), cast.ToInt(values[1]), cast.ToInt(values[2]))
+		} else {
+			result = Substr(cast.ToString(values[0]), cast.ToInt(values[1]), 0)
+		}
+
+		break
+
 		// TODO Modolo percentage
 		// Array Operations
 		// TODO Map, Reduce and Filter http://jsonlogic.com/operations.html#map-reduce-and-filter
 		// TODO All, None and Some http://jsonlogic.com/operations.html#all-none-and-some
 		// TODO Merge http://jsonlogic.com/operations.html#merge
 		// TODO In http://jsonlogic.com/operations.html#in
-		// String Operations
-		// TODO In http://jsonlogic.com/operations.html#in-1
-		// TODO Cat http://jsonlogic.com/operations.html#cat
-		// TODO Substr http://jsonlogic.com/operations.html#substr
+
 		// Miscellaneous
 	case "log":
 		result = Log(cast.ToString(values[0]))
 		break
 	}
 	return result
+}
+
+func Substr(a string, position int, length int) string {
+	start := 0
+	end := len(a)
+
+	if position < 0 {
+		start = end + position
+	} else {
+		start = position
+	}
+
+	if length < 0 {
+		end = end + length
+	} else if length > 0 {
+		end = position + length
+	}
+
+	return a[start:end]
+}
+
+func In(a string, b string) bool {
+	return strings.Contains(b, a)
+}
+
+// Cat implements the 'cat' conditional returning all the values merged together.
+func Cat(values []interface{}) string {
+	buffer := new(bytes.Buffer)
+	for _, v := range values {
+		buffer.WriteString(cast.ToString(v))
+	}
+	return buffer.String()
 }
 
 // Max implements the 'Max' conditional returning the Maximum value from an array of values.
@@ -447,7 +493,7 @@ func If(conditional bool, success interface{}, fail interface{}) interface{} {
 }
 
 // Var implements the 'var' operator, which grabs value from passed data and has a fallback.
-func Var(rules interface{}, fallback interface{}, data string) interface{} {
+func Var(rules interface{}, fallback interface{}, data string) (value interface{}) {
 	ruleType := GetType(rules)
 	rule := ""
 	switch ruleType {
@@ -458,13 +504,24 @@ func Var(rules interface{}, fallback interface{}, data string) interface{} {
 		rule = cast.ToString(rules)
 	}
 
-	key := strings.Split(rule, ".")
-	dataValue, dataType, _, _ := jsonparser.Get([]byte(data), key...)
-
-	value := TranslateType(dataValue, dataType)
-	if value == nil {
-		value = fallback
+	if cast.ToString(rules) == "" {
+		dataValue, dataType, _, _ := jsonparser.Get([]byte(data))
+		if dataType != jsonparser.NotExist {
+			value = TranslateType(dataValue, dataType)
+		}
+	} else {
+		key := strings.Split(rule, ".")
+		dataValue, dataType, _, _ := jsonparser.Get([]byte(data), key...)
+		value = TranslateType(dataValue, dataType)
+		if value == nil {
+			value = fallback
+		}
 	}
+
+	if value == "" {
+		value = data
+	}
+
 	return value
 }
 

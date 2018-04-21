@@ -170,12 +170,21 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 		result = MoreEqual(cast.ToString(values[0]), cast.ToString(values[1]))
 		break
 	case "<":
-		result = Less(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		// Test for exclusive between
+		if len(values) > 2 {
+			result = LessBetween(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]), cast.ToFloat64(values[2]))
+		} else {
+			result = Less(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		}
 		break
 	case "<=":
-		result = LessEqual(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		// Test for inclusive between
+		if len(values) > 2 {
+			result = LessEqualBetween(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]), cast.ToFloat64(values[2]))
+		} else {
+			result = LessEqual(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		}
 		break
-		// TODO Between http://jsonlogic.com/operations.html#between
 	case "max":
 		result = Max(values)
 		break
@@ -273,7 +282,7 @@ func Divide(a float64, b float64) interface{} {
 	return a / b
 }
 
-// SoftEqual implements the '==' operator, which does type JS-style coertion. Returns bool.
+// SoftEqual implements the '==' operator, which does type JS-style coertion.
 func SoftEqual(a string, b string) bool {
 	if a == b {
 		return true
@@ -281,7 +290,7 @@ func SoftEqual(a string, b string) bool {
 	return false
 }
 
-// HardEqual Implements the '===' operator, which does type JS-style coertion. Returns bool.
+// HardEqual Implements the '===' operator, which does type JS-style coertion.
 func HardEqual(a ...interface{}) bool {
 	if GetType(a[0]) != GetType(a[1]) {
 		return false
@@ -294,27 +303,38 @@ func HardEqual(a ...interface{}) bool {
 	return false
 }
 
-// NotSoftEqual implements the '!=' operator, which does type JS-style coertion. Returns bool.
+// NotSoftEqual implements the '!=' operator, which does type JS-style coertion.
 func NotSoftEqual(a string, b string) bool {
 	return !SoftEqual(a, b)
 }
 
-// NotHardEqual implements the '!==' operator, which does type JS-style coertion. Returns bool.
+// NotHardEqual implements the '!==' operator, which does type JS-style coertion.
 func NotHardEqual(a ...interface{}) bool {
 	return !HardEqual(a[0], a[1])
 }
 
-// More implements the '>' operator with JS-style type coertion. Returns bool.
+// More implements the '>' operator with JS-style type coertion.
 func More(a float64, b float64) bool {
 	return LessEqual(b, a)
 }
 
-// MoreEqual implements the '>=' operator with JS-style type coertion. Returns bool.
+// MoreEqual implements the '>=' operator with JS-style type coertion.
 func MoreEqual(a string, b string) bool {
 	return Less(cast.ToFloat64(b), cast.ToFloat64(a)) || SoftEqual(a, b)
 }
 
-// Less implements the '<' operator with JS-style type coertion. Returns bool.
+// Less implements the '<' operator however checks against 3 values to test that one value is between but not equal to two others.
+func LessBetween(a float64, b float64, c float64) bool {
+	leftCheck := Less(a, b)
+	rightCheck := Less(b, c)
+
+	if leftCheck && rightCheck {
+		return true
+	}
+	return false
+}
+
+// Less implements the '<' operator with JS-style type coertion.
 func Less(a float64, b float64) bool {
 	if a < b {
 		return true
@@ -322,7 +342,18 @@ func Less(a float64, b float64) bool {
 	return false
 }
 
-// LessEqual implements the '<=' operator with JS-style type coertion. Returns bool.
+// Less implements the '<' operator however checks against 3 values to test that one value is between two others.
+func LessEqualBetween(a float64, b float64, c float64) bool {
+	leftCheck := LessEqual(a, b)
+	rightCheck := LessEqual(b, c)
+
+	if leftCheck && rightCheck {
+		return true
+	}
+	return false
+}
+
+// LessEqual implements the '<=' operator with JS-style type coertion.
 func LessEqual(a float64, b float64) bool {
 	if a <= b {
 		return true
@@ -330,12 +361,12 @@ func LessEqual(a float64, b float64) bool {
 	return false
 }
 
-// NotTruthy implements the '!' operator with JS-style type coertion. Returns bool.
+// NotTruthy implements the '!' operator with JS-style type coertion.
 func NotTruthy(a interface{}) bool {
 	return !Truthy(a)
 }
 
-// Truthy implements the '!!' operator with JS-style type coertion. Returns bool.
+// Truthy implements the '!!' operator with JS-style type coertion.
 func Truthy(a interface{}) bool {
 	valid, length := isArray(a)
 	if valid == true && length == 0 {

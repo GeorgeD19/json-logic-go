@@ -6,6 +6,82 @@ import (
 	"github.com/spf13/cast"
 )
 
+// Between
+
+// Between exclusive
+func TestBetweenExclusiveLess(t *testing.T) {
+	rule := `{"<" : [1, 2, 3]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != true {
+		t.Fatalf("rule should return true, instead returned %s", result)
+	}
+}
+
+func TestBetweenExclusiveLessNot(t *testing.T) {
+	rule := `{"<" : [1, 1, 3]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != false {
+		t.Fatalf("rule should return false, instead returned %s", result)
+	}
+}
+
+func TestBetweenExclusiveLessMore(t *testing.T) {
+	rule := `{"<" : [1, 4, 3]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != false {
+		t.Fatalf("rule should return false, instead returned %s", result)
+	}
+}
+
+func TestBetweenInclusiveLess(t *testing.T) {
+	rule := `{"<=" : [1, 2, 3]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != true {
+		t.Fatalf("rule should return true, instead returned %s", result)
+	}
+}
+
+func TestBetweenInclusiveLessNot(t *testing.T) {
+	rule := `{"<=" : [1, 1, 3]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != true {
+		t.Fatalf("rule should return true, instead returned %s", result)
+	}
+}
+
+func TestBetweenInclusiveLessMore(t *testing.T) {
+	rule := `{"<=" : [1, 4, 3]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != false {
+		t.Fatalf("rule should return false, instead returned %s", result)
+	}
+}
+
+func TestBetweenExclusiveLessData(t *testing.T) {
+	rule := `{ "<": [0, {"var":"temp"}, 100]}`
+	data := `{"temp" : 37}`
+
+	result, _ := Apply(rule, data)
+
+	if cast.ToBool(result) != true {
+		t.Fatalf("rule should return true, instead returned %s", result)
+	}
+}
+
+// TODO Clean up tests to match against http://jsonlogic.com/operations.html
+
 func TestMaxTrue(t *testing.T) {
 	rule := `{"max": [
 		4,

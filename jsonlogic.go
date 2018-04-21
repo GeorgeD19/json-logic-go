@@ -18,47 +18,144 @@ var (
 	ErrInvalidOperation = errors.New("Invalid Operation %s")
 )
 
-func RunOperation(key string, logic string, data string) (res interface{}) {
+// Apply is the entry function to parse logic and optional data
+func Apply(logic string, data string) (res interface{}, errs error) {
+
+	// Ensure data is object
+	if data == `` {
+		data = `{}`
+	}
+
+	// Must be an object to start process
+	result, err := ParseOperator(logic, data)
+	if err != nil {
+		return false, err
+	}
+
+	return result, nil
+}
+
+// ParseOperator takes in the json logic and data and attempts to parse
+func ParseOperator(logic string, data string) (result interface{}, err error) {
+	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+		result = RunOperator(string(key), string(value), data)
+		return nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	return result, nil
+}
+
+// GetValues will attempt to recursively resolve all values for a given operator
+func GetValues(logic string, data string) (results []interface{}) {
+
+	// JsonLogic rule is always one key, with an array of values
+	_, err := jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		switch dataType {
+		case jsonparser.Object:
+			res, _ := ParseOperator(string(value), data)
+			results = append(results, res)
+			break
+		case jsonparser.String:
+			results = append(results, cast.ToString(value))
+			break
+		case jsonparser.Number:
+			results = append(results, cast.ToFloat64(cast.ToString(value)))
+			break
+		case jsonparser.Boolean:
+			results = append(results, cast.ToBool(value))
+			break
+		case jsonparser.Null:
+			results = append(results, value)
+			break
+		}
+	})
+
+	// JsonLogic may also support syntactic sugar
+	if err != nil {
+		if logic != "" {
+			if _, err := strconv.Atoi(logic); err == nil {
+
+				// If string then we can attempt to retrieve the value from the data
+				value, dataType, _, _ := jsonparser.Get([]byte(data), "["+logic+"]")
+				if len(value) > 0 {
+					results = append(results, logic)
+					switch dataType {
+					case jsonparser.String:
+						results = append(results, cast.ToString(value))
+						break
+					case jsonparser.Number:
+						results = append(results, cast.ToFloat64(cast.ToString(value)))
+						break
+					case jsonparser.Boolean:
+						results = append(results, cast.ToBool(value))
+						break
+					case jsonparser.Null:
+						results = append(results, value)
+						break
+					}
+				} else {
+					// No data was found so we just append the logic and move on
+					results = append(results, logic)
+				}
+
+			} else {
+				// Is an integer so we assume it's value
+				results = append(results, logic)
+			}
+		} else {
+			return nil
+		}
+	}
+
+	return results
+}
+
+// RunOperator determines what function to run against the passed logic and data
+func RunOperator(key string, logic string, data string) (result interface{}) {
 	values := GetValues(logic, data)
 	switch key {
 	case "==":
-		res = SoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
+		result = SoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
 		break
 	case "===":
-		res = HardEqual(values[0], values[1])
+		result = HardEqual(values[0], values[1])
 		break
 	case "!=":
-		res = NotSoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
+		result = NotSoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
 		break
 	case "!==":
-		res = NotHardEqual(values[0], values[1])
+		result = NotHardEqual(values[0], values[1])
 		break
 	case ">":
-		res = More(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = More(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
 	case ">=":
-		res = MoreEqual(cast.ToString(values[0]), cast.ToString(values[1]))
+		result = MoreEqual(cast.ToString(values[0]), cast.ToString(values[1]))
 		break
 	case "<":
-		res = Less(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = Less(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
 	case "<=":
-		res = LessEqual(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = LessEqual(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
 	case "!":
-		res = NotTruthy(values)
+		result = NotTruthy(values)
 		break
 	case "!!":
-		res = Truthy(values)
+		result = Truthy(values)
 		break
 	case "%":
-		res = Percentage(cast.ToInt(values[0]), cast.ToInt(values[1]))
+		result = Percentage(cast.ToInt(values[0]), cast.ToInt(values[1]))
 		break
 	case "and":
-		res = And(values)
+		result = And(values)
 		break
 	case "or":
-		res = Or(values)
+		result = Or(values)
 		break
 	case "var":
 		var fallback interface{}
@@ -68,35 +165,35 @@ func RunOperation(key string, logic string, data string) (res interface{}) {
 			fallback = nil
 		}
 
-		res = Var(cast.ToString(values[0]), fallback, data)
+		result = Var(cast.ToString(values[0]), fallback, data)
 		break
 	case "?":
 	case "if":
-		res = If(cast.ToBool(values[0]), values[1], values[2])
+		result = If(cast.ToBool(values[0]), values[1], values[2])
 		break
 	case "log":
-		res = Log(cast.ToString(values[0]))
+		result = Log(cast.ToString(values[0]))
 		break
 	case "+":
-		res = Plus(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = Plus(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
 	case "-":
-		res = Minus(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = Minus(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
 	case "*":
-		res = Multiply(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = Multiply(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
 	case "/":
-		res = Divide(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = Divide(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
 	case "min":
-		res = Min(values)
+		result = Min(values)
 		break
 	case "max":
-		res = Max(values)
+		result = Max(values)
 		break
 	}
-	return res
+	return result
 }
 
 // Max implements the 'Max' conditional returning the Maximum value from an array of values.
@@ -235,7 +332,7 @@ func Percentage(a int, b int) float64 {
 	return percent.PercentOf(a, b)
 }
 
-// And implements the 'and' conditional requiring all bubbled up bools to be true
+// And implements the 'and' conditional requiring all bubbled up bools to be true.
 func And(values []interface{}) bool {
 	result := true
 	for _, res := range values {
@@ -246,7 +343,7 @@ func And(values []interface{}) bool {
 	return result
 }
 
-// Or implements the 'or' conditional requiring at least one of the bubbled up bools to be true
+// Or implements the 'or' conditional requiring at least one of the bubbled up bools to be true.
 func Or(values []interface{}) bool {
 	result := false
 	for _, res := range values {
@@ -257,7 +354,7 @@ func Or(values []interface{}) bool {
 	return result
 }
 
-// If implements the 'if' conditional where if the first value is true, the second value is returned, otherwise the third
+// If implements the 'if' conditional where if the first value is true, the second value is returned, otherwise the third.
 func If(conditional bool, success interface{}, fail interface{}) interface{} {
 	if conditional {
 		return success
@@ -265,7 +362,7 @@ func If(conditional bool, success interface{}, fail interface{}) interface{} {
 	return fail
 }
 
-// Var implements the 'var' operator, which grabs value from passed data and has a fallback
+// Var implements the 'var' operator, which grabs value from passed data and has a fallback.
 func Var(logic string, fallback interface{}, data string) interface{} {
 	key := strings.Split(logic, ".")
 	dataValue, dataType, _, _ := jsonparser.Get([]byte(data), key...)
@@ -276,70 +373,7 @@ func Var(logic string, fallback interface{}, data string) interface{} {
 	return value
 }
 
-// GetValues will return values of any kind
-func GetValues(logic string, data string) (results []interface{}) {
-
-	_, err := jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		switch dataType {
-		case jsonparser.Object:
-			res, _ := ParseObject(string(value), data)
-			results = append(results, res)
-			break
-		case jsonparser.String:
-			results = append(results, cast.ToString(value))
-			break
-		case jsonparser.Number:
-			results = append(results, cast.ToFloat64(cast.ToString(value)))
-			break
-		case jsonparser.Boolean:
-			results = append(results, cast.ToBool(value))
-			break
-		case jsonparser.Null:
-			results = append(results, value)
-			break
-		}
-	})
-	if err != nil {
-		// Is this a string? or is it nil
-		if logic != "" {
-			if _, err := strconv.Atoi(logic); err == nil {
-				value, dataType, _, _ := jsonparser.Get([]byte(data), "["+logic+"]")
-				if len(value) > 0 {
-					results = append(results, logic)
-					switch dataType {
-					case jsonparser.Object:
-						res, _ := ParseObject(string(value), data)
-						results = append(results, res)
-						break
-					case jsonparser.String:
-						results = append(results, cast.ToString(value))
-						break
-					case jsonparser.Number:
-						results = append(results, cast.ToFloat64(cast.ToString(value)))
-						break
-					case jsonparser.Boolean:
-						results = append(results, cast.ToBool(value))
-						break
-					case jsonparser.Null:
-						results = append(results, value)
-						break
-					}
-				} else {
-					results = append(results, logic)
-				}
-
-			} else {
-				results = append(results, logic)
-			}
-		} else {
-			return nil
-		}
-	}
-
-	return results
-}
-
-// GetType returns an int to map against type so we can see if we are dealing with a specific type of data or an object operation
+// GetType returns an int to map against type so we can see if we are dealing with a specific type of data or an object operation.
 func GetType(a interface{}) int {
 	switch a.(type) {
 	case int:
@@ -357,23 +391,7 @@ func GetType(a interface{}) int {
 	}
 }
 
-// ParseArray is basically ParseValue runs all the operations in an array and returns an array of values whether that be bool or whatever
-func ParseArray(logic string, data string) (res []bool, off int, e error) {
-	result := []bool{}
-	offset, err := jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		switch dataType {
-		case jsonparser.Object:
-			objectResult, _ := ParseObject(string(value), data)
-			result[offset] = objectResult.(bool)
-			break
-		}
-	})
-	if err != nil {
-		return nil, 0, err
-	}
-	return result, offset, nil
-}
-
+// TranslateType Takes the returned dataType from jsonparser along with it's returned []byte data and returns the casted value.
 func TranslateType(data []byte, dataType jsonparser.ValueType) interface{} {
 	switch dataType {
 	case jsonparser.String:
@@ -396,36 +414,7 @@ func TranslateType(data []byte, dataType jsonparser.ValueType) interface{} {
 	return nil
 }
 
-// ParseObject entry point
-func ParseObject(logic string, data string) (res interface{}, err error) {
-	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-		res = RunOperation(string(key), string(value), data)
-		return nil
-	})
-
-	if err != nil {
-		return false, err
-	}
-	return res, nil
-}
-
-// Apply is the entry function to parse logic and optional data
-func Apply(logic string, data string) (res interface{}, errs error) {
-
-	// Ensure data is object
-	if data == `` {
-		data = `{}`
-	}
-
-	// Must be an object to kick off process
-	result, err := ParseObject(logic, data)
-	if err != nil {
-		return false, err
-	}
-
-	return result, nil
-}
-
+// isArray is a simple function to determine if passed args is of type array.
 func isArray(args interface{}) (valid bool, length int) {
 	val := reflect.ValueOf(args)
 

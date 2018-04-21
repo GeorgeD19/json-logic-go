@@ -164,6 +164,27 @@ func TestMinusArgNeg(t *testing.T) {
 	}
 }
 
+func TestAddCast(t *testing.T) {
+	rule := `{"+": "3.14" }`
+
+	result, _ := Run(rule)
+
+	if cast.ToFloat64(result) != 3.14 {
+		t.Fatalf("rule should return 3.14, instead returned %s", result)
+	}
+}
+
+// %
+// func TestModolo(t *testing.T) {
+// 	rule := `{"%": [101,2]}`
+
+// 	result, _ := Run(rule)
+
+// 	if cast.ToInt(result) != 1 {
+// 		t.Fatalf("rule should return 1, instead returned %s", result)
+// 	}
+// }
+
 // TODO Clean up tests to match against http://jsonlogic.com/operations.html
 
 func TestMaxTrue(t *testing.T) {

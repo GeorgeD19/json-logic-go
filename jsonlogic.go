@@ -212,6 +212,7 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 	case "%":
 		result = Percentage(cast.ToInt(values[0]), cast.ToInt(values[1]))
 		break
+		// TODO Modolo percentage
 		// Array Operations
 		// TODO Map, Reduce and Filter http://jsonlogic.com/operations.html#map-reduce-and-filter
 		// TODO All, None and Some http://jsonlogic.com/operations.html#all-none-and-some
@@ -409,6 +410,10 @@ func Truthy(a interface{}) bool {
 // Percentage implements the '%' operator, which does type JS-style coertion. Returns float64.
 func Percentage(a int, b int) float64 {
 	return percent.PercentOf(a, b)
+}
+
+func Modulo() {
+
 }
 
 // And implements the 'and' conditional requiring all bubbled up bools to be true.

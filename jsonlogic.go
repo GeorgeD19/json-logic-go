@@ -122,6 +122,22 @@ func GetValues(rule string, data string) (results []interface{}) {
 func RunOperator(key string, rule string, data string) (result interface{}) {
 	values := GetValues(rule, data)
 	switch key {
+	// Accessing Data
+	case "var":
+		var fallback interface{}
+		if len(values) > 1 {
+			fallback = values[1]
+		} else {
+			fallback = nil
+		}
+
+		result = Var(cast.ToString(values[0]), fallback, data)
+		break
+		// Logic and Boolean Operations
+	case "?":
+	case "if":
+		result = If(cast.ToBool(values[0]), values[1], values[2])
+		break
 	case "==":
 		result = SoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
 		break
@@ -134,6 +150,19 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 	case "!==":
 		result = NotHardEqual(values[0], values[1])
 		break
+	case "!":
+		result = NotTruthy(values)
+		break
+	case "!!":
+		result = Truthy(values)
+		break
+	case "or":
+		result = Or(values)
+		break
+	case "and":
+		result = And(values)
+		break
+		// Numeric Operations
 	case ">":
 		result = More(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
@@ -146,37 +175,12 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 	case "<=":
 		result = LessEqual(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
-	case "!":
-		result = NotTruthy(values)
+		// TODO Between
+	case "max":
+		result = Max(values)
 		break
-	case "!!":
-		result = Truthy(values)
-		break
-	case "%":
-		result = Percentage(cast.ToInt(values[0]), cast.ToInt(values[1]))
-		break
-	case "and":
-		result = And(values)
-		break
-	case "or":
-		result = Or(values)
-		break
-	case "var":
-		var fallback interface{}
-		if len(values) > 1 {
-			fallback = values[1]
-		} else {
-			fallback = nil
-		}
-
-		result = Var(cast.ToString(values[0]), fallback, data)
-		break
-	case "?":
-	case "if":
-		result = If(cast.ToBool(values[0]), values[1], values[2])
-		break
-	case "log":
-		result = Log(cast.ToString(values[0]))
+	case "min":
+		result = Min(values)
 		break
 	case "+":
 		result = Plus(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
@@ -190,11 +194,25 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 	case "/":
 		result = Divide(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
-	case "min":
-		result = Min(values)
+	case "%":
+		result = Percentage(cast.ToInt(values[0]), cast.ToInt(values[1]))
 		break
-	case "max":
-		result = Max(values)
+		// Array Operations
+		// TODO Map
+		// TODO Reduce
+		// TODO Filter
+		// TODO All
+		// TODO None
+		// TODO Some
+		// TODO Merge
+		// TODO In
+		// String Operations
+		// TODO In
+		// TODO Cat
+		// TODO Substr
+		// Miscellaneous
+	case "log":
+		result = Log(cast.ToString(values[0]))
 		break
 	}
 	return result

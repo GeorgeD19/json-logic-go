@@ -175,7 +175,7 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 	case "<=":
 		result = LessEqual(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		break
-		// TODO Between
+		// TODO Between http://jsonlogic.com/operations.html#between
 	case "max":
 		result = Max(values)
 		break
@@ -198,18 +198,14 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 		result = Percentage(cast.ToInt(values[0]), cast.ToInt(values[1]))
 		break
 		// Array Operations
-		// TODO Map
-		// TODO Reduce
-		// TODO Filter
-		// TODO All
-		// TODO None
-		// TODO Some
-		// TODO Merge
-		// TODO In
+		// TODO Map, Reduce and Filter http://jsonlogic.com/operations.html#map-reduce-and-filter
+		// TODO All, None and Some http://jsonlogic.com/operations.html#all-none-and-some
+		// TODO Merge http://jsonlogic.com/operations.html#merge
+		// TODO In http://jsonlogic.com/operations.html#in
 		// String Operations
-		// TODO In
-		// TODO Cat
-		// TODO Substr
+		// TODO In http://jsonlogic.com/operations.html#in-1
+		// TODO Cat http://jsonlogic.com/operations.html#cat
+		// TODO Substr http://jsonlogic.com/operations.html#substr
 		// Miscellaneous
 	case "log":
 		result = Log(cast.ToString(values[0]))

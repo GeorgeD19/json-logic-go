@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/dariubs/percent"
@@ -43,7 +42,13 @@ func Apply(rule string, data string) (res interface{}, errs error) {
 // ParseOperator takes in the json rule and data and attempts to parse
 func ParseOperator(rule string, data string) (result interface{}, err error) {
 	err = jsonparser.ObjectEach([]byte(rule), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-		result = RunOperator(string(key), string(value), data)
+		switch dataType {
+		case jsonparser.String:
+			result = RunOperator(string(key), "\""+string(value)+"\"", data)
+			break
+		default:
+			result = RunOperator(string(key), string(value), data)
+		}
 		return nil
 	})
 
@@ -56,63 +61,63 @@ func ParseOperator(rule string, data string) (result interface{}, err error) {
 
 // GetValues will attempt to recursively resolve all values for a given operator
 func GetValues(rule string, data string) (results []interface{}) {
-	// Jsonrule rule is always one key, with an array of values
-	_, err := jsonparser.ArrayEach([]byte(rule), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		switch dataType {
-		case jsonparser.Object:
-			res, _ := ParseOperator(string(value), data)
-			results = append(results, res)
-			break
-		case jsonparser.String:
-			results = append(results, cast.ToString(value))
-			break
-		case jsonparser.Number:
-			results = append(results, cast.ToFloat64(cast.ToString(value)))
-			break
-		case jsonparser.Boolean:
-			results = append(results, cast.ToBool(value))
-			break
-		case jsonparser.Null:
-			results = append(results, value)
-			break
-		}
-	})
 
-	// Jsonrule may also support syntactic sugar
-	if err != nil {
-		if rule != "" {
-			if _, err := strconv.Atoi(rule); err == nil {
-
-				// If string then we can attempt to retrieve the value from the data
-				value, dataType, _, _ := jsonparser.Get([]byte(data), "["+rule+"]")
-				if len(value) > 0 {
-					results = append(results, rule)
-					switch dataType {
-					case jsonparser.String:
-						results = append(results, cast.ToString(value))
-						break
-					case jsonparser.Number:
-						results = append(results, cast.ToFloat64(cast.ToString(value)))
-						break
-					case jsonparser.Boolean:
-						results = append(results, cast.ToBool(value))
-						break
-					case jsonparser.Null:
-						results = append(results, value)
-						break
-					}
-				} else {
-					// No data was found so we just append the rule and move on
-					results = append(results, rule)
-				}
-
-			} else {
-				// Is an integer so we assume it's value
-				results = append(results, rule)
+	ruleValue, dataType, _, _ := jsonparser.Get([]byte(rule))
+	switch dataType {
+	case jsonparser.Object:
+		res, _ := ParseOperator(string(ruleValue), data)
+		results = append(results, res)
+		break
+	case jsonparser.Array:
+		jsonparser.ArrayEach([]byte(ruleValue), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+			switch dataType {
+			case jsonparser.Object:
+				res, _ := ParseOperator(string(value), data)
+				results = append(results, res)
+				break
+			case jsonparser.String:
+				results = append(results, cast.ToString(value))
+				break
+			case jsonparser.Number:
+				results = append(results, cast.ToFloat64(cast.ToString(value)))
+				break
+			case jsonparser.Boolean:
+				results = append(results, cast.ToBool(value))
+				break
+			case jsonparser.Null:
+				results = append(results, value)
+				break
+			}
+		})
+	case jsonparser.Number:
+		results = append(results, cast.ToFloat64(string(ruleValue)))
+		break
+	case jsonparser.String:
+		rule = rule[1 : len(rule)-1]
+		value, dataType, _, _ := jsonparser.Get([]byte(data), rule)
+		if len(value) > 0 {
+			results = append(results, rule)
+			switch dataType {
+			case jsonparser.String:
+				results = append(results, cast.ToString(value))
+				break
+			case jsonparser.Number:
+				results = append(results, cast.ToFloat64(cast.ToString(value)))
+				break
+			case jsonparser.Boolean:
+				results = append(results, cast.ToBool(value))
+				break
+			case jsonparser.Null:
+				results = append(results, value)
+				break
 			}
 		} else {
-			return nil
+			// No data was found so we just append the rule and move on
+			results = append(results, rule)
 		}
+		break
+	default:
+		return nil
 	}
 
 	return results
@@ -120,6 +125,7 @@ func GetValues(rule string, data string) (results []interface{}) {
 
 // RunOperator determines what function to run against the passed rule and data
 func RunOperator(key string, rule string, data string) (result interface{}) {
+
 	values := GetValues(rule, data)
 	switch key {
 	// Accessing Data
@@ -131,7 +137,7 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 			fallback = nil
 		}
 
-		result = Var(cast.ToString(values[0]), fallback, data)
+		result = Var(values[0], fallback, data)
 		break
 		// Logic and Boolean Operations
 	case "?":
@@ -192,13 +198,13 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 		result = Min(values)
 		break
 	case "+":
-		result = Plus(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = Plus(values)
 		break
 	case "-":
-		result = Minus(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = Minus(values)
 		break
 	case "*":
-		result = Multiply(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
+		result = Multiply(values)
 		break
 	case "/":
 		result = Divide(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
@@ -263,18 +269,42 @@ func Log(a string) interface{} {
 }
 
 // Plus implements the '+' operator, which does type JS-style coertion.
-func Plus(a float64, b float64) interface{} {
-	return a + b
+func Plus(a []interface{}) interface{} {
+	result := 0.0
+
+	for _, v := range a {
+		result = result + cast.ToFloat64(v)
+	}
+
+	return result
 }
 
 // Minus implements the '-' operator, which does type JS-style coertion.
-func Minus(a float64, b float64) interface{} {
-	return a - b
+func Minus(a []interface{}) interface{} {
+	result := cast.ToFloat64(a[0])
+
+	if len(a) < 2 {
+		result = -1 * cast.ToFloat64(a[0])
+	} else {
+		for i, v := range a {
+			if i != 0 {
+				result = result - cast.ToFloat64(v)
+			}
+		}
+	}
+
+	return result
 }
 
 // Multiply implements the '-' operator, which does type JS-style coertion.
-func Multiply(a float64, b float64) interface{} {
-	return a * b
+func Multiply(a []interface{}) interface{} {
+	result := 1.0
+
+	for _, v := range a {
+		result = result * cast.ToFloat64(v)
+	}
+
+	return result
 }
 
 // Divide implements the '-' operator, which does type JS-style coertion.
@@ -412,9 +442,20 @@ func If(conditional bool, success interface{}, fail interface{}) interface{} {
 }
 
 // Var implements the 'var' operator, which grabs value from passed data and has a fallback.
-func Var(rule string, fallback interface{}, data string) interface{} {
+func Var(rules interface{}, fallback interface{}, data string) interface{} {
+	ruleType := GetType(rules)
+	rule := ""
+	switch ruleType {
+	case 1:
+	case 2:
+		rule = "[" + cast.ToString(rules) + "]"
+	default:
+		rule = cast.ToString(rules)
+	}
+
 	key := strings.Split(rule, ".")
 	dataValue, dataType, _, _ := jsonparser.Get([]byte(data), key...)
+
 	value := TranslateType(dataValue, dataType)
 	if value == nil {
 		value = fallback

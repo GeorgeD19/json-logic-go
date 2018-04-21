@@ -80,6 +80,90 @@ func TestBetweenExclusiveLessData(t *testing.T) {
 	}
 }
 
+// Arithmetic
+
+// Addition
+
+func TestAdd(t *testing.T) {
+	rule := `{"+":[4,2]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToInt(result) != 6 {
+		t.Fatalf("rule should return 6, instead returned %s", result)
+	}
+}
+
+func TestMinus(t *testing.T) {
+	rule := `{"-":[4,2]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToInt(result) != 2 {
+		t.Fatalf("rule should return 2, instead returned %s", result)
+	}
+}
+
+func TestMultiply(t *testing.T) {
+	rule := `{"*":[4,2]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToInt(result) != 8 {
+		t.Fatalf("rule should return 8, instead returned %s", result)
+	}
+}
+
+func TestDivide(t *testing.T) {
+	rule := `{"/":[4,2]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToInt(result) != 2 {
+		t.Fatalf("rule should return 2, instead returned %s", result)
+	}
+}
+
+func TestAddArgs(t *testing.T) {
+	rule := `{"+":[2,2,2,2,2]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToInt(result) != 10 {
+		t.Fatalf("rule should return 10, instead returned %s", result)
+	}
+}
+
+func TestMultiplyArgs(t *testing.T) {
+	rule := `{"*":[2,2,2,2,2]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToInt(result) != 32 {
+		t.Fatalf("rule should return 32, instead returned %s", result)
+	}
+}
+
+func TestMinusArgPos(t *testing.T) {
+	rule := `{"-": 2 }`
+
+	result, _ := Run(rule)
+
+	if cast.ToInt(result) != -2 {
+		t.Fatalf("rule should return -2, instead returned %s", result)
+	}
+}
+
+func TestMinusArgNeg(t *testing.T) {
+	rule := `{"-": -2 }`
+
+	result, _ := Run(rule)
+
+	if cast.ToInt(result) != 2 {
+		t.Fatalf("rule should return 2, instead returned %s", result)
+	}
+}
+
 // TODO Clean up tests to match against http://jsonlogic.com/operations.html
 
 func TestMaxTrue(t *testing.T) {

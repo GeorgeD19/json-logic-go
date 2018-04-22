@@ -748,10 +748,6 @@ func TestAndTrue(t *testing.T) {
 	}
 }
 
-// func TestCat() {
-
-// }
-
 func TestMinusTrue(t *testing.T) {
 	rule := `{"-":[
 		1,

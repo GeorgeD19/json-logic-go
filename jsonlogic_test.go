@@ -1,6 +1,7 @@
 package jsonlogic
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/cast"
@@ -287,6 +288,16 @@ func TestIn(t *testing.T) {
 	}
 }
 
+func TestInArray(t *testing.T) {
+	rule := `{"in":[ "Ringo", ["John", "Paul", "George", "Ringo"] ]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != true {
+		t.Fatalf("rule should return true, instead returned %s", result)
+	}
+}
+
 // Cat
 
 // %
@@ -339,6 +350,78 @@ func TestSubstrPositionLengthNeg(t *testing.T) {
 
 	if cast.ToString(result) != "log" {
 		t.Fatalf("rule should return log, instead returned %s", result)
+	}
+}
+
+// Merge
+
+func TestMerge(t *testing.T) {
+	rule := `{"merge":[ [1,2], [3,4] ]}`
+
+	result, _ := Run(rule)
+	target := []int{1, 2, 3, 4}
+
+	if reflect.DeepEqual(result, target) {
+		t.Fatalf("rule should return [1,2,3,4], instead returned %s", result)
+	}
+}
+
+func TestMergeMixed(t *testing.T) {
+	rule := `{"merge":[ 1, 2, [3,4] ]}`
+
+	result, _ := Run(rule)
+	target := []int{1, 2, 3, 4}
+
+	if reflect.DeepEqual(result, target) {
+		t.Fatalf("rule should return [1,2,3,4], instead returned %s", result)
+	}
+}
+
+func TestMergeStringMixed(t *testing.T) {
+	rule := `{"missing" :
+		{ "merge" : [
+		  "vin",
+		  {"if": [{"var":"financing"}, ["apr", "term"], [] ]}
+		]}
+	  }`
+	data := `{"financing":true}`
+
+	result, _ := Apply(rule, data)
+	target := []string{"vin", "apr", "term"}
+
+	if reflect.DeepEqual(result, target) {
+		t.Fatalf("rule should return [vin, api, term], instead returned %s", result)
+	}
+}
+
+func TestMergeStringMixedMissing(t *testing.T) {
+	rule := `{"missing" :
+		{ "merge" : [
+		  "vin",
+		  {"if": [{"var":"financing"}, ["apr", "term"], [] ]}
+		]}
+	  }`
+	data := `{"financing":false}`
+
+	result, _ := Apply(rule, data)
+	target := []string{"vin"}
+
+	if reflect.DeepEqual(result, target) {
+		t.Fatalf("rule should return [vin], instead returned %s", result)
+	}
+}
+
+// Missing
+
+func TestMissing(t *testing.T) {
+	rule := `{"missing":["a", "b"]}`
+	data := `{"a":"apple", "c":"carrot"}`
+
+	result, _ := Apply(rule, data)
+	target := []string{"b"}
+
+	if reflect.DeepEqual(result, target) {
+		t.Fatalf("rule should return [b], instead returned %s", result)
 	}
 }
 

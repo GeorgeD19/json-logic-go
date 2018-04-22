@@ -2,6 +2,7 @@ package jsonlogic
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -72,6 +73,11 @@ func GetValues(rule string, data string) (results []interface{}) {
 	case jsonparser.Array:
 		jsonparser.ArrayEach([]byte(ruleValue), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 			switch dataType {
+			case jsonparser.Array:
+				m := make([]interface{}, 0)
+				json.Unmarshal(value, &m)
+				results = append(results, m)
+				break
 			case jsonparser.Object:
 				res, _ := ParseOperator(string(value), data)
 				results = append(results, res)
@@ -127,6 +133,7 @@ func GetValues(rule string, data string) (results []interface{}) {
 
 // RunOperator determines what function to run against the passed rule and data
 func RunOperator(key string, rule string, data string) (result interface{}) {
+
 	values := GetValues(rule, data)
 	switch key {
 	// Accessing Data
@@ -140,7 +147,15 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 
 		result = Var(values[0], fallback, data)
 		break
-		// Logic and Boolean Operations
+	// TODO missing
+	case "missing":
+		result = Missing(values, data)
+		break
+	case "missing_some":
+
+		break
+	// TODO missing_some
+	// Logic and Boolean Operations
 	case "?":
 	case "if":
 		result = If(cast.ToBool(values[0]), values[1], values[2])
@@ -218,7 +233,7 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 		result = Cat(values)
 		break
 	case "in":
-		result = In(cast.ToString(values[0]), cast.ToString(values[1]))
+		result = In(values)
 		break
 	case "substr":
 		if len(values) > 2 {
@@ -226,21 +241,66 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 		} else {
 			result = Substr(cast.ToString(values[0]), cast.ToInt(values[1]), 0)
 		}
+		break
+	case "merge":
+		result = Merge(values)
+		break
+		// TODO All, None and Some http://jsonlogic.com/operations.html#all-none-and-some
+	case "all":
 
 		break
+	case "some":
 
-		// TODO Modolo percentage
-		// Array Operations
+		break
+	case "none":
+
+		break
 		// TODO Map, Reduce and Filter http://jsonlogic.com/operations.html#map-reduce-and-filter
-		// TODO All, None and Some http://jsonlogic.com/operations.html#all-none-and-some
-		// TODO Merge http://jsonlogic.com/operations.html#merge
-		// TODO In http://jsonlogic.com/operations.html#in
+	case "map":
 
+		break
+	case "reduce":
+
+		break
+	case "filter":
+
+		break
 		// Miscellaneous
 	case "log":
 		result = Log(cast.ToString(values[0]))
 		break
 	}
+	return result
+}
+
+func Missing(a []interface{}, data string) interface{} {
+	result := make([]interface{}, 0)
+
+	for i := 0; i < len(a); i++ {
+		_, dataType, _, _ := jsonparser.Get([]byte(data), cast.ToString(a[i]))
+		if dataType == jsonparser.NotExist {
+			result = append(result, a[i])
+		}
+	}
+
+	return result
+}
+
+func Merge(a []interface{}) interface{} {
+	result := make([]interface{}, 0)
+
+	for i := 0; i < len(a); i++ {
+		array, _ := isArray(a[i])
+		if array {
+			item := a[i].([]interface{})
+			for x := 0; x < len(item); x++ {
+				result = append(result, item[x])
+			}
+		} else {
+			result = append(result, a[i])
+		}
+	}
+
 	return result
 }
 
@@ -263,8 +323,21 @@ func Substr(a string, position int, length int) string {
 	return a[start:end]
 }
 
-func In(a string, b string) bool {
-	return strings.Contains(b, a)
+func In(a []interface{}) bool {
+	array, _ := isArray(a[1])
+	if array {
+		items := a[1].([]interface{})
+		result := false
+		for i := 0; i < len(items); i++ {
+			if strings.Contains(cast.ToString(items[i]), cast.ToString(a[0])) {
+				result = true
+			}
+		}
+		return result
+	} else {
+		return strings.Contains(cast.ToString(a[1]), cast.ToString(a[0]))
+	}
+	return false
 }
 
 // Cat implements the 'cat' conditional returning all the values merged together.

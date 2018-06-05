@@ -19,6 +19,9 @@ var (
 	ErrInvalidOperation = errors.New("Invalid Operation %s")
 )
 
+// Operators holds any operators
+var Operators = make(map[string]func(rule string, data string) (result interface{}), 0)
+
 // Run is an alias to Apply without data
 func Run(rule string) (res interface{}, errs error) {
 	return Apply(rule, ``)
@@ -129,6 +132,11 @@ func GetValues(rule string, data string) (results []interface{}) {
 	}
 
 	return results
+}
+
+// AddOperator allows for custom operators to be used
+func AddOperator(key string, cb func(rule string, data string) (result interface{})) {
+	Operators[key] = cb
 }
 
 // RunOperator determines what function to run against the passed rule and data
@@ -270,6 +278,14 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 		result = Log(cast.ToString(values[0]))
 		break
 	}
+
+	// Check against any custom operators
+	for index, operation := range Operators {
+		if key == index {
+			result = operation(rule, data)
+		}
+	}
+
 	return result
 }
 

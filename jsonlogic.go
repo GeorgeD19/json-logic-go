@@ -19,6 +19,8 @@ var (
 	ErrInvalidOperation = errors.New("Invalid Operation %s")
 )
 
+// TODO make data available globally within the current instance
+
 // Operators holds any operators
 var Operators = make(map[string]func(rule string, data string) (result interface{}), 0)
 
@@ -166,7 +168,8 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 	// Logic and Boolean Operations
 	case "?":
 	case "if":
-		result = If(cast.ToBool(values[0]), values[1], values[2])
+		// TOFIX this won't work as we may pass in vars that require parsing
+		result = If(values[0], values[1], values[2], data)
 		break
 	case "==":
 		result = SoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
@@ -547,10 +550,6 @@ func Percentage(a int, b int) float64 {
 	return percent.PercentOf(a, b)
 }
 
-func Modulo() {
-
-}
-
 // And implements the 'and' conditional requiring all bubbled up bools to be true.
 func And(values []interface{}) bool {
 	result := true
@@ -574,8 +573,15 @@ func Or(values []interface{}) bool {
 }
 
 // If implements the 'if' conditional where if the first value is true, the second value is returned, otherwise the third.
-func If(conditional bool, success interface{}, fail interface{}) interface{} {
-	if conditional {
+func If(conditional interface{}, success interface{}, fail interface{}, data string) interface{} {
+	// TODO Parse conditional, which we need access to global data
+	result, err := ParseOperator(cast.ToString(conditional), data)
+	if err != nil {
+		if cast.ToBool(conditional) {
+			return success
+		}
+	}
+	if cast.ToBool(result) {
 		return success
 	}
 	return fail

@@ -119,6 +119,16 @@ func TestBetweenExclusiveLess(t *testing.T) {
 	}
 }
 
+func TestBetweenExclusiveLessString(t *testing.T) {
+	rule := `{"<" : [1, 2, "3"]}`
+
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != true {
+		t.Fatalf("rule should return true, instead returned %s", result)
+	}
+}
+
 func TestBetweenExclusiveLessNot(t *testing.T) {
 	rule := `{"<" : [1, 1, 3]}`
 
@@ -780,7 +790,7 @@ func TestPlusTrue(t *testing.T) {
 
 func TestIfTrue(t *testing.T) {
 	rule := `{"if":[
-		{"==":["b", "b"]},
+		{"==":[{"var":"b"},{"var":"b"}]},
 		"True",
 		"False"
 	  ]}`
@@ -790,8 +800,39 @@ func TestIfTrue(t *testing.T) {
 	result, _ := Apply(rule, data)
 
 	if cast.ToString(result) != "True" {
-		t.Fatal("rule should return True")
+		t.Fatalf("rule should return True, instead returned %s", result)
 	}
+}
+
+func TestIfStringInteger(t *testing.T) {
+	// rule := `{
+	// 	"if": [
+	// 		{"<": [{"var":"score"}, 4] }, true,
+	// 		false
+	// 	]
+	// }`
+	rule := `
+	{
+		"if": [
+			{
+				"<" : [{"var":"score"}, 4]
+			},
+			true,
+			false
+		]
+	}
+	`
+	data := `{
+		"score": 4
+	}`
+
+	result, _ := Apply(rule, data)
+
+	t.Fatalf("rule should return false, instead returned %s", result)
+
+	// if cast.ToBool(result) != false {
+	// 	t.Fatalf("rule should return false, instead returned %s", result)
+	// }
 }
 
 func TestOrTrue(t *testing.T) {

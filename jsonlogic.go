@@ -19,8 +19,6 @@ var (
 	ErrInvalidOperation = errors.New("Invalid Operation %s")
 )
 
-// TODO make data available globally within the current instance
-
 // Operators holds any operators
 var Operators = make(map[string]func(rule string, data string) (result interface{}), 0)
 
@@ -94,7 +92,7 @@ func GetValues(rule string, data string) (results []interface{}) {
 				results = append(results, cast.ToFloat64(cast.ToString(value)))
 				break
 			case jsonparser.Boolean:
-				results = append(results, cast.ToBool(value))
+				results = append(results, cast.ToBool(string(value)))
 				break
 			case jsonparser.Null:
 				results = append(results, value)
@@ -168,8 +166,9 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 	// Logic and Boolean Operations
 	case "?":
 	case "if":
-		// TOFIX this won't work as we may pass in vars that require parsing
-		result = If(values[0], values[1], values[2], data)
+		// TOFIX basically the "success" value is showing false when it should be showing true
+		// result = If(values[0], values[1], values[2])
+		result = If(values)
 		break
 	case "==":
 		result = SoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
@@ -573,18 +572,31 @@ func Or(values []interface{}) bool {
 }
 
 // If implements the 'if' conditional where if the first value is true, the second value is returned, otherwise the third.
-func If(conditional interface{}, success interface{}, fail interface{}, data string) interface{} {
-	// TODO Parse conditional, which we need access to global data
-	result, err := ParseOperator(cast.ToString(conditional), data)
-	if err != nil {
-		if cast.ToBool(conditional) {
-			return success
+// func If(conditional interface{}, success interface{}, fail interface{}) interface{} {
+func If(conditions []interface{}) interface{} {
+	var result interface{}
+
+	lastElement := conditions[len(conditions)-1]
+	isTrue := false
+
+	for i := 0; i < len(conditions); i++ {
+
+		if (i + 1) < len(conditions) {
+			value := conditions[i+1]
+			if cast.ToBool(conditions[i]) {
+				result = value
+				isTrue = true
+			}
 		}
+
+		i++
 	}
-	if cast.ToBool(result) {
-		return success
+
+	if isTrue {
+		return result
 	}
-	return fail
+
+	return lastElement
 }
 
 // Var implements the 'var' operator, which grabs value from passed data and has a fallback.

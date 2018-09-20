@@ -789,11 +789,19 @@ func TestPlusTrue(t *testing.T) {
 }
 
 func TestIfTrue(t *testing.T) {
-	rule := `{"if":[
-		{"==":[{"var":"b"},{"var":"b"}]},
-		"True",
-		"False"
-	  ]}`
+	rule := `{
+		"if": [
+			{
+				"==": [{
+					"var": "b"
+				}, {
+					"var": "b"
+				}]
+			},
+			"True",
+			"False"
+		]
+	}`
 	data := `{"a":"apple", "b":"banana"}`
 
 	// Should return True string
@@ -805,34 +813,43 @@ func TestIfTrue(t *testing.T) {
 }
 
 func TestIfStringInteger(t *testing.T) {
-	// rule := `{
-	// 	"if": [
-	// 		{"<": [{"var":"score"}, 4] }, true,
-	// 		false
-	// 	]
-	// }`
 	rule := `
 	{
 		"if": [
-			{
-				"<" : [{"var":"score"}, 4]
-			},
-			true,
+			{"<": [{"var":"question_1_score"}, 4] }, true,
+			{"<": [{"var":"question_2_score"}, 4] }, true,
+			{"<": [{"var":"question_3_score"}, 4] }, true,
+			{"<": [{"var":"question_4_score"}, 4] }, true,
+			{"<": [{"var":"question_5_score"}, 4] }, true,
+			{"<": [{"var":"question_6_score"}, 4] }, true,
+			{"<": [{"var":"question_7_score"}, 4] }, true,
+			{"<": [{"var":"question_8_score"}, 4] }, true,
+			{"<": [{"var":"question_9_score"}, 4] }, true,
+			{"<": [{"var":"question_10_score"}, 4] }, true,
+			{"<": [{"var":"question_11_score"}, 4] }, true,
 			false
 		]
 	}
 	`
 	data := `{
-		"score": 4
+		"question_1_score": "4",
+		"question_2_score": "4",
+		"question_3_score": "4",
+		"question_4_score": "4",
+		"question_5_score": "4",
+		"question_6_score": "4",
+		"question_7_score": "4",
+		"question_8_score": "4",
+		"question_9_score": "4",
+		"question_10_score": "4",
+		"question_11_score": "3"
 	}`
 
 	result, _ := Apply(rule, data)
 
-	t.Fatalf("rule should return false, instead returned %s", result)
-
-	// if cast.ToBool(result) != false {
-	// 	t.Fatalf("rule should return false, instead returned %s", result)
-	// }
+	if cast.ToBool(result) != true {
+		t.Fatalf("rule should return true, instead returned %s", result)
+	}
 }
 
 func TestOrTrue(t *testing.T) {

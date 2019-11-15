@@ -7,10 +7,6 @@ import (
 	"github.com/spf13/cast"
 )
 
-// Accessing Data
-
-// Var
-
 func TestVar(t *testing.T) {
 	rule := `{ "var" : ["a"] }`
 	data := `{ "a":1, "b":2 }`
@@ -809,46 +805,6 @@ func TestIfTrue(t *testing.T) {
 
 	if cast.ToString(result) != "True" {
 		t.Fatalf("rule should return True, instead returned %s", result)
-	}
-}
-
-func TestIfStringInteger(t *testing.T) {
-	rule := `
-	{
-		"if": [
-			{"<": [{"var":"question_1_score"}, 4] }, true,
-			{"<": [{"var":"question_2_score"}, 4] }, true,
-			{"<": [{"var":"question_3_score"}, 4] }, true,
-			{"<": [{"var":"question_4_score"}, 4] }, true,
-			{"<": [{"var":"question_5_score"}, 4] }, true,
-			{"<": [{"var":"question_6_score"}, 4] }, true,
-			{"<": [{"var":"question_7_score"}, 4] }, true,
-			{"<": [{"var":"question_8_score"}, 4] }, true,
-			{"<": [{"var":"question_9_score"}, 4] }, true,
-			{"<": [{"var":"question_10_score"}, 4] }, true,
-			{"<": [{"var":"question_11_score"}, 4] }, true,
-			false
-		]
-	}
-	`
-	data := `{
-		"question_1_score": "4",
-		"question_2_score": "4",
-		"question_3_score": "4",
-		"question_4_score": "4",
-		"question_5_score": "4",
-		"question_6_score": "4",
-		"question_7_score": "4",
-		"question_8_score": "4",
-		"question_9_score": "4",
-		"question_10_score": "4",
-		"question_11_score": "3"
-	}`
-
-	result, _ := Apply(rule, data)
-
-	if cast.ToBool(result) != true {
-		t.Fatalf("rule should return true, instead returned %s", result)
 	}
 }
 

@@ -926,11 +926,7 @@ func TestOrInvalid(t *testing.T) {
 	}
 	`
 
-	data := `
-	{
-		"question_1_score": "N/A"
-	}
-	`
+	data := `{"question_1_score": "N/A"}`
 
 	// Should return true
 	result, _ := Apply(rule, data)

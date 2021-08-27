@@ -3,9 +3,9 @@ package jsonlogic
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/dariubs/percent"
@@ -16,11 +16,11 @@ import (
 
 // Errors
 var (
-	ErrInvalidOperation = errors.New("Invalid Operation %s")
+	ErrInvalidOperation = "invalid operation: %s"
 )
 
 // Operators holds any operators
-var Operators = make(map[string]func(rule string, data string) (result interface{}), 0)
+var Operators = make(map[string]func(rule string, data string) (result interface{}))
 
 // Run is an alias to Apply without data
 func Run(rule string) (res interface{}, errs error) {
@@ -50,7 +50,6 @@ func ParseOperator(rule string, data string) (result interface{}, err error) {
 		switch dataType {
 		case jsonparser.String:
 			result = RunOperator(string(key), "\""+string(value)+"\"", data)
-			break
 		default:
 			result = RunOperator(string(key), string(value), data)
 		}
@@ -58,7 +57,7 @@ func ParseOperator(rule string, data string) (result interface{}, err error) {
 	})
 
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf(ErrInvalidOperation, err)
 	}
 
 	return result, nil
@@ -72,7 +71,6 @@ func GetValues(rule string, data string) (results []interface{}) {
 	case jsonparser.Object:
 		res, _ := ParseOperator(string(ruleValue), data)
 		results = append(results, res)
-		break
 	case jsonparser.Array:
 		jsonparser.ArrayEach([]byte(ruleValue), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 			switch dataType {
@@ -80,28 +78,21 @@ func GetValues(rule string, data string) (results []interface{}) {
 				m := make([]interface{}, 0)
 				json.Unmarshal(value, &m)
 				results = append(results, m)
-				break
 			case jsonparser.Object:
 				res, _ := ParseOperator(string(value), data)
 				results = append(results, res)
-				break
 			case jsonparser.String:
 				results = append(results, cast.ToString(value))
-				break
 			case jsonparser.Number:
 				results = append(results, cast.ToFloat64(cast.ToString(value)))
-				break
 			case jsonparser.Boolean:
 				results = append(results, cast.ToBool(string(value)))
-				break
 			case jsonparser.Null:
 				results = append(results, value)
-				break
 			}
 		})
 	case jsonparser.Number:
 		results = append(results, cast.ToFloat64(string(ruleValue)))
-		break
 	case jsonparser.String:
 		// Remove the quotes we added so we could detect string type
 		rule = rule[1 : len(rule)-1]
@@ -111,22 +102,17 @@ func GetValues(rule string, data string) (results []interface{}) {
 			switch dataType {
 			case jsonparser.String:
 				results = append(results, cast.ToString(value))
-				break
 			case jsonparser.Number:
 				results = append(results, cast.ToFloat64(cast.ToString(value)))
-				break
 			case jsonparser.Boolean:
 				results = append(results, cast.ToBool(value))
-				break
 			case jsonparser.Null:
 				results = append(results, value)
-				break
 			}
 		} else {
 			// No data was found so we just append the rule and move on
 			results = append(results, rule)
 		}
-		break
 	default:
 		return nil
 	}
@@ -154,11 +140,9 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 		}
 
 		result = Var(values[0], fallback, data)
-		break
 	// TODO missing
 	case "missing":
 		result = Missing(values, data)
-		break
 	case "missing_some":
 
 		break
@@ -169,92 +153,70 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 		// TOFIX basically the "success" value is showing false when it should be showing true
 		// result = If(values[0], values[1], values[2])
 		result = If(values)
-		break
 	case "==":
 		result = SoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
-		break
 	case "===":
 		result = HardEqual(values[0], values[1])
-		break
 	case "!=":
 		result = NotSoftEqual(cast.ToString(values[0]), cast.ToString(values[1]))
-		break
 	case "!==":
 		result = NotHardEqual(values[0], values[1])
-		break
 	case "!":
 		result = NotTruthy(values)
-		break
 	case "!!":
 		result = Truthy(values)
-		break
 	case "or":
 		result = Or(values)
-		break
 	case "and":
 		result = And(values)
-		break
 		// Numeric Operations
 	case ">":
 		result = More(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
-		break
 	case ">=":
 		result = MoreEqual(cast.ToString(values[0]), cast.ToString(values[1]))
-		break
 	case "<":
 		// Test for exclusive between
-		if len(values) > 2 {
+		result = false
+		if len(values) > 2 && IsNumeric(values[0]) && IsNumeric(values[1]) && IsNumeric(values[2]) {
 			result = LessBetween(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]), cast.ToFloat64(values[2]))
-		} else {
+		} else if IsNumeric(values[0]) && IsNumeric(values[1]) {
 			result = Less(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		}
-		break
 	case "<=":
 		// Test for inclusive between
-		if len(values) > 2 {
+		result = false
+		if len(values) > 2 && IsNumeric(values[0]) && IsNumeric(values[1]) && IsNumeric(values[2]) {
 			result = LessEqualBetween(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]), cast.ToFloat64(values[2]))
-		} else {
+		} else if IsNumeric(values[0]) && IsNumeric(values[1]) {
 			result = LessEqual(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
 		}
-		break
 	case "max":
 		result = Max(values)
-		break
 	case "min":
 		result = Min(values)
-		break
 	case "+":
 		result = Plus(values)
-		break
 	case "-":
 		result = Minus(values)
-		break
 	case "*":
 		result = Multiply(values)
-		break
 	case "/":
 		result = Divide(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
-		break
 	case "%":
 		result = Percentage(cast.ToInt(values[0]), cast.ToInt(values[1]))
-		break
 		// String Operations
 	case "cat":
 		result = Cat(values)
-		break
 	case "in":
 		result = In(values)
-		break
 	case "substr":
 		if len(values) > 2 {
 			result = Substr(cast.ToString(values[0]), cast.ToInt(values[1]), cast.ToInt(values[2]))
 		} else {
 			result = Substr(cast.ToString(values[0]), cast.ToInt(values[1]), 0)
 		}
-		break
 	case "merge":
 		result = Merge(values)
-		break
 		// TODO All, None and Some http://jsonlogic.com/operations.html#all-none-and-some
 	case "all":
 
@@ -278,7 +240,6 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 		// Miscellaneous
 	case "log":
 		result = Log(cast.ToString(values[0]))
-		break
 	}
 
 	// Check against any custom operators
@@ -289,6 +250,11 @@ func RunOperator(key string, rule string, data string) (result interface{}) {
 	}
 
 	return result
+}
+
+func IsNumeric(s interface{}) bool {
+	_, err := strconv.ParseFloat(cast.ToString(s), 64)
+	return err == nil
 }
 
 func Missing(a []interface{}, data string) interface{} {
@@ -352,10 +318,8 @@ func In(a []interface{}) bool {
 			}
 		}
 		return result
-	} else {
-		return strings.Contains(cast.ToString(a[1]), cast.ToString(a[0]))
 	}
-	return false
+	return strings.Contains(cast.ToString(a[1]), cast.ToString(a[0]))
 }
 
 // Cat implements the 'cat' conditional returning all the values merged together.
@@ -452,10 +416,7 @@ func Divide(a float64, b float64) interface{} {
 
 // SoftEqual implements the '==' operator, which does type JS-style coertion.
 func SoftEqual(a string, b string) bool {
-	if a == b {
-		return true
-	}
-	return false
+	return a == b
 }
 
 // HardEqual Implements the '===' operator, which does type JS-style coertion.
@@ -504,10 +465,7 @@ func LessBetween(a float64, b float64, c float64) bool {
 
 // Less implements the '<' operator with JS-style type coertion.
 func Less(a float64, b float64) bool {
-	if a < b {
-		return true
-	}
-	return false
+	return a < b
 }
 
 // Less implements the '<' operator however checks against 3 values to test that one value is between two others.
@@ -523,10 +481,7 @@ func LessEqualBetween(a float64, b float64, c float64) bool {
 
 // LessEqual implements the '<=' operator with JS-style type coertion.
 func LessEqual(a float64, b float64) bool {
-	if a <= b {
-		return true
-	}
-	return false
+	return a <= b
 }
 
 // NotTruthy implements the '!' operator with JS-style type coertion.
@@ -537,7 +492,7 @@ func NotTruthy(a interface{}) bool {
 // Truthy implements the '!!' operator with JS-style type coertion.
 func Truthy(a interface{}) bool {
 	valid, length := isArray(a)
-	if valid == true && length == 0 {
+	if valid && length == 0 {
 		return true
 	}
 
@@ -655,20 +610,14 @@ func TranslateType(data []byte, dataType jsonparser.ValueType) interface{} {
 	switch dataType {
 	case jsonparser.String:
 		return string(data)
-		break
 	case jsonparser.Number:
 		numberString := cast.ToString(data)
 		numberFloat := cast.ToFloat64(numberString)
 		return numberFloat
-		break
 	case jsonparser.Boolean:
 		return string(data)
-		break
 	case jsonparser.Null:
 		return string(data)
-		break
-	default:
-		return nil
 	}
 	return nil
 }

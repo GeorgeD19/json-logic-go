@@ -7,6 +7,14 @@ import (
 	"github.com/spf13/cast"
 )
 
+func TestOperator(t *testing.T) {
+	_, err := Run(``)
+
+	if err == nil {
+		t.Fatalf("rule should throw error, instead returned %s", err)
+	}
+}
+
 func TestVar(t *testing.T) {
 	rule := `{ "var" : ["a"] }`
 	data := `{ "a":1, "b":2 }`
@@ -448,6 +456,17 @@ func TestMaxTrue(t *testing.T) {
 	}
 }
 
+func TestMaxEmpty(t *testing.T) {
+	rule := `{"max": []} `
+
+	// Should return true
+	result, _ := Run(rule)
+
+	if cast.ToFloat64(result) != 0 {
+		t.Fatal("rule should return 0")
+	}
+}
+
 func TestMinTrue(t *testing.T) {
 	rule := `{"min": [
 		4,
@@ -460,6 +479,17 @@ func TestMinTrue(t *testing.T) {
 
 	if cast.ToFloat64(result) != 3.0 {
 		t.Fatal("rule should return 3.0")
+	}
+}
+
+func TestMinEmpty(t *testing.T) {
+	rule := `{"min": []} `
+
+	// Should return true
+	result, _ := Run(rule)
+
+	if cast.ToFloat64(result) != 0 {
+		t.Fatal("rule should return 0")
 	}
 }
 
@@ -727,9 +757,66 @@ func TestLessTrueVar(t *testing.T) {
 	}
 }
 
-func TestLessEqualVarTrue(t *testing.T) {
+func TestLessThanOrEqualLeft(t *testing.T) {
+	rule := `{"<=" : [ 11, 110 ]}`
+
+	// Should return true
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != true {
+		t.Fatal("rule should return true")
+	}
+}
+
+func TestLessThanOrEqualRight(t *testing.T) {
+	rule := `{"<=" : [ 120, 110 ]}`
+
+	// Should return true
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != false {
+		t.Fatal("rule should return false")
+	}
+}
+
+func TestLessThanOrEqualExact(t *testing.T) {
+	rule := `{"<=" : [ 110, 110 ]}`
+
+	// Should return true
+	result, _ := Run(rule)
+
+	if cast.ToBool(result) != true {
+		t.Fatal("rule should return true")
+	}
+}
+
+func TestLessThanOrEqualVarRight(t *testing.T) {
 	rule := `{"<=" : [ { "var" : "temp" }, 110 ]}`
 	data := `{ "temp" : 110 }`
+
+	// Should return true
+	result, _ := Apply(rule, data)
+
+	if cast.ToBool(result) != true {
+		t.Fatal("rule should return true")
+	}
+}
+
+func TestGreaterThanVarRight(t *testing.T) {
+	rule := `{">" : [ { "var" : "temp" }, 110 ]}`
+	data := `{ "temp" : 120 }`
+
+	// Should return true
+	result, _ := Apply(rule, data)
+
+	if cast.ToBool(result) != true {
+		t.Fatal("rule should return true")
+	}
+}
+
+func TestGreaterThanOrEqualVarRight(t *testing.T) {
+	rule := `{">=" : [ { "var" : "temp" }, 110 ]}`
+	data := `{ "temp" : 120 }`
 
 	// Should return true
 	result, _ := Apply(rule, data)
@@ -820,5 +907,35 @@ func TestOrTrue(t *testing.T) {
 
 	if cast.ToBool(result) != true {
 		t.Fatal("rule should return true")
+	}
+}
+
+func TestOrInvalid(t *testing.T) {
+	rule := `
+	{
+		"or": [
+			{
+				"<": [
+					{
+						"var": "question_1_score"
+					},
+					3
+				]
+			}
+		]
+	}
+	`
+
+	data := `
+	{
+		"question_1_score": "N/A"
+	}
+	`
+
+	// Should return true
+	result, _ := Apply(rule, data)
+
+	if cast.ToBool(result) != false {
+		t.Fatal("rule should return false")
 	}
 }

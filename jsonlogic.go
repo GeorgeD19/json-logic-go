@@ -35,6 +35,9 @@ func Apply(rule string, data string) (res interface{}, errs error) {
 		data = `{}`
 	}
 
+	// Unicode &
+	data = strings.ReplaceAll(data, `\u0026`, `&`)
+
 	// Must be an object to start process
 	result, err := ParseOperator(rule, data)
 	if err != nil {

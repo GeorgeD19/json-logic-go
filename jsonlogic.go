@@ -316,7 +316,7 @@ func In(a []interface{}) bool {
 		items := a[1].([]interface{})
 		result := false
 		for i := 0; i < len(items); i++ {
-			if strings.Contains(cast.ToString(items[i]), cast.ToString(a[0])) {
+			if strings.Contains(cast.ToString(items[i]), cast.ToString(a[0])) && a[0] != nil {
 				result = true
 			}
 		}

@@ -1,4 +1,4 @@
-module github.com/GeorgeD19/json-logic-go
+module github.com/doriandekoning/json-logic-go
 
 go 1.17
 

@@ -298,7 +298,7 @@ func TestIn(t *testing.T) {
 	result, _ := Run(rule)
 
 	if cast.ToBool(result) != true {
-		t.Fatalf("rule should return true, instead returned %s", result)
+		t.Fatalf("rule should return true, instead returned %t", result)
 	}
 }
 
@@ -308,7 +308,16 @@ func TestInArray(t *testing.T) {
 	result, _ := Run(rule)
 
 	if cast.ToBool(result) != true {
-		t.Fatalf("rule should return true, instead returned %s", result)
+		t.Fatalf("rule should return true, instead returned %t", result)
+	}
+}
+
+func TestInArrayPartialMatch(t *testing.T) {
+	rule := `{"in":[ "Ringo", ["RingoPaul", "George"] ]}`
+
+	result, _ := Run(rule)
+	if cast.ToBool(result) != false {
+		t.Fatalf("rule should return false, instead returned %t", result)
 	}
 }
 

@@ -1,4 +1,6 @@
-# json-logic-go
+# json-logic-go 
+
+## Forked from https://github.com/GeorgeD19/json-logic-go
 
 This parser accepts [JsonLogic](http://jsonlogic.com) rules and executes them in Go.
 
